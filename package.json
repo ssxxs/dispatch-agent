@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:hvac": "node --env-file=.env.local scripts/sync-vapi-assistant.mjs",
+    "test:webhook": "node scripts/test-webhook.mjs"
   },
   "dependencies": {
     "@vapi-ai/web": "^2.4.0",
