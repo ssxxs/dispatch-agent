@@ -4,8 +4,9 @@
 
 ## Quick Status
 
-- **Phase**: MVP (Phase 1 / 6) — HVAC single vertical, browser-based call
-- **Stack**: Next.js 16 + Vapi (Voice) + OpenRouter (LLM) + Supabase (DB)
+- **Phase**: Phase 1 (MVP) — backend live on prod ✅, awaiting real-device voice test
+- **Live demo**: https://dispatch-agent-seven.vercel.app/demo/hvac
+- **Stack**: Next.js 16 + Vapi (Voice) + OpenRouter (LLM); Supabase planned for Phase 2+
 - **Cost target**: < $0.05 per demo call
 
 ## Get Started
