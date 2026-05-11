@@ -1,36 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dispatch Agent
 
-## Getting Started
+**24/7 AI Voice Receptionist for service businesses** — HVAC, dental, beauty, legal intake, moving. Same architecture, multiple verticals. Misses no call, books appointments, escalates emergencies.
 
-First, run the development server:
+## Quick Status
+
+- **Phase**: MVP (Phase 1 / 6) — HVAC single vertical, browser-based call
+- **Stack**: Next.js 16 + Vapi (Voice) + OpenRouter (LLM) + Supabase (DB)
+- **Cost target**: < $0.05 per demo call
+
+## Get Started
 
 ```bash
+npm install
+cp .env.example .env.local  # fill in keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 → click "Try the HVAC Receptionist" → browser asks for mic → AI picks up.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Docs
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- [`SPEC.md`](./SPEC.md) — Product spec v2 (Voice Receptionist)
+- [`progress.md`](./progress.md) — Cross-session progress tracker
+- [`docs/ACCOUNT_SETUP.md`](./docs/ACCOUNT_SETUP.md) — Registration runbook (Vapi, OpenRouter, Vercel, Supabase, Upwork)
+- [`docs/COST_MODEL.md`](./docs/COST_MODEL.md) — Full cost breakdown
 
-## Learn More
+## License
 
-To learn more about Next.js, take a look at the following resources:
+Private project — Upwork portfolio piece.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

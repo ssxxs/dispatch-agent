@@ -1,0 +1,119 @@
+{
+  "name": "AustinAir HVAC Receptionist (Phase 1 demo)",
+  "firstMessage": "Thanks for calling AustinAir, this is Riley. How can I help today?",
+  "model": {
+    "provider": "openrouter",
+    "model": "google/gemini-2.0-flash-exp:free",
+    "temperature": 0.5,
+    "messages": [
+      {
+        "role": "system",
+        "content": "PASTE_HVAC_SYSTEM_PROMPT_HERE — copy from lib/verticals/hvac/prompt.ts"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "check_availability",
+          "description": "Find the next available HVAC appointment slot matching urgency and required skills.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "urgency": {
+                "type": "string",
+                "enum": ["emergency", "same-day", "scheduled"],
+                "description": "How quickly the caller needs service."
+              },
+              "needed_skills": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Optional: technician skills needed (e.g. ['ac-repair', 'furnace'])."
+              }
+            },
+            "required": ["urgency"]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "book_appointment",
+          "description": "Book a confirmed HVAC appointment for the caller.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "caller_name": { "type": "string" },
+              "caller_phone": { "type": "string", "description": "Best callback number including area code" },
+              "address": { "type": "string", "description": "Service address including ZIP" },
+              "slot_id": { "type": "string", "description": "From check_availability result" },
+              "issue": { "type": "string", "description": "Short description of the problem" },
+              "urgency": {
+                "type": "string",
+                "enum": ["emergency", "same-day", "scheduled"]
+              }
+            },
+            "required": ["caller_name", "caller_phone", "address", "slot_id", "issue", "urgency"]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "escalate_to_owner",
+          "description": "EMERGENCY ONLY — gas smell, fire, sparking, no heat with vulnerable person, flooding, etc. Transfers caller to owner's mobile.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string",
+                "description": "Precise emergency reason so the owner knows what they're walking into."
+              },
+              "caller_phone": { "type": "string" },
+              "caller_name": { "type": "string" }
+            },
+            "required": ["reason", "caller_phone"]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_quote_range",
+          "description": "Provide rough price range for a common HVAC issue. Always say 'approximate, technician confirms onsite'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "issue_type": {
+                "type": "string",
+                "enum": [
+                  "ac-not-cooling",
+                  "furnace-not-heating",
+                  "leak-or-water",
+                  "thermostat-not-working",
+                  "strange-noise",
+                  "maintenance-tuneup"
+                ]
+              }
+            },
+            "required": ["issue_type"]
+          }
+        }
+      }
+    ],
+    "serverUrl": "REPLACE_WITH_YOUR_DEPLOYED_URL/api/vapi-webhook"
+  },
+  "voice": {
+    "provider": "11labs",
+    "voiceId": "21m00Tcm4TlvDq8ikWAM"
+  },
+  "transcriber": {
+    "provider": "deepgram",
+    "model": "nova-2",
+    "language": "en"
+  },
+  "endCallFunctionEnabled": true,
+  "endCallMessage": "Have a great day!",
+  "maxDurationSeconds": 360,
+  "silenceTimeoutSeconds": 30
+}
