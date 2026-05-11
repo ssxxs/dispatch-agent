@@ -69,7 +69,7 @@ export default function Home() {
         </div>
 
         <div className="border-t border-zinc-200 dark:border-zinc-800 pt-8 text-sm text-zinc-500">
-          Built with Next.js 16, Vapi, OpenRouter, Supabase. Open source.
+          Built with Next.js 16, Vapi, and OpenRouter. Open source.
         </div>
       </div>
     </main>
