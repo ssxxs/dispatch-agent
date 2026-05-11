@@ -2,6 +2,37 @@
 
 > Cross-session memory. Update at end of each work session. Most recent at top.
 
+## 2026-05-11 (Phase 1 milestone: end-to-end backend live)
+
+### Done this session
+- [x] Vapi & OpenRouter accounts registered, keys configured locally
+- [x] Webhook smoke test: 21/21 checks pass on **local** dev server
+- [x] Deployed to Vercel production: https://dispatch-agent-seven.vercel.app
+- [x] Pushed `NEXT_PUBLIC_VAPI_*` env vars to Vercel (Production + Development)
+- [x] Synced assistant config to Vapi with prod `serverUrl` + 4 tools
+- [x] Webhook smoke test: **21/21 checks pass on PRODUCTION** ✅
+- [x] Confirmed JSON response schema matches Vapi tool-calls spec
+
+### Live URLs
+- Demo page: https://dispatch-agent-seven.vercel.app/demo/hvac
+- Webhook:   https://dispatch-agent-seven.vercel.app/api/vapi-webhook
+- Vapi assistant: `a8a9622e-7207-4119-b352-9a6ebfd39c42`
+
+### Gotcha logged (for future sessions)
+- ⚠️ `npx vercel link` **silently overwrites `.env.local`** with cloud env vars (only adds VERCEL_OIDC_TOKEN to a fresh project, deleting everything else). Always back up `.env.local` before running `link` or `env pull`:
+  ```bash
+  cp -p .env.local ".env.local.bak.$(date +%Y%m%d-%H%M%S)"
+  ```
+  (`.env*` is gitignored, so backups won't leak.)
+- Workaround we used: `VAPI_SERVER_URL=... npm run sync:hvac` to override without touching `.env.local`.
+
+### Next up (user actions)
+- [ ] Open demo page on **iPhone Safari** → grant mic → tap Call → talk to Riley
+- [ ] Verify tool calls fire correctly during the live call (book an appt, ask for quote, trigger emergency)
+- [ ] If voice quality / latency / model is good → proceed to Upwork pitch prep
+
+---
+
 ## 2026-05-11 (Phase 0 / Phase 1 kickoff)
 
 ### Decisions locked
