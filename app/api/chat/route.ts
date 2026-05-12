@@ -1,19 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getVertical, type VerticalId } from '@/lib/verticals/registry';
 
 /**
- * Multi-vertical text-chat endpoint.
+ * Multi-vertical text-chat endpoint with **server-sent event streaming**.
  *
- * Request body:
- *   { vertical: 'hvac' | 'plumber' | 'electrician', messages: [{role, content}] }
+ * Why stream? An agentic loop can take 8-15s end-to-end (LLM → tool →
+ * LLM → final reply). Without streaming the UI shows a "..." for the full
+ * duration. With streaming the user sees:
+ *   - "Thinking..." within 100ms
+ *   - "🔧 check_availability(...)" as soon as the LLM decides
+ *   - Tool result as soon as it returns (instant for our mock tools)
+ *   - Reply tokens flowing in word-by-word
  *
- * Flow per request:
- *   1. Look up vertical config (prompt + tools + handler).
- *   2. Prepend system prompt + local Austin time.
- *   3. Call OpenRouter with this vertical's tools.
- *   4. If LLM emits tool_calls → execute via the vertical's handler → feed
- *      results back → repeat up to MAX_ITERATIONS.
- *   5. Return the final assistant message + full tool trace.
+ * Event types (one JSON object per `data:` line, ending with `\n\n`):
+ *   { type: 'status', message: string }                          // human-readable phase tag
+ *   { type: 'tool_call', name, arguments }                       // LLM decided to call a tool
+ *   { type: 'tool_result', name, arguments, result }             // tool returned
+ *   { type: 'token', token: string }                             // streaming reply chunk
+ *   { type: 'done', iterations: number }                         // final
+ *   { type: 'error', message: string }                           // fatal error mid-stream
  */
 
 export const runtime = 'nodejs';
@@ -24,43 +29,48 @@ const MAX_ITERATIONS = 4;
 
 type ChatMessage =
   | { role: 'user' | 'system'; content: string }
-  | { role: 'assistant'; content: string | null; tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }> }
+  | {
+      role: 'assistant';
+      content: string | null;
+      tool_calls?: Array<{
+        id: string;
+        type: 'function';
+        function: { name: string; arguments: string };
+      }>;
+    }
   | { role: 'tool'; tool_call_id: string; content: string };
 
-type ToolTrace = {
+interface AccumulatedToolCall {
+  id: string;
   name: string;
-  arguments: Record<string, unknown>;
-  result: unknown;
-};
+  arguments: string;
+}
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    return NextResponse.json(
-      { error: 'Server misconfigured: OPENROUTER_API_KEY missing.' },
-      { status: 500 }
-    );
+    return jsonError('Server misconfigured: OPENROUTER_API_KEY missing.', 500);
   }
 
   let body: { vertical?: string; messages?: Array<{ role: string; content: string }> };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'invalid json' }, { status: 400 });
+    return jsonError('invalid json', 400);
   }
 
   const verticalId = (body.vertical as VerticalId) || 'hvac';
   const vertical = getVertical(verticalId);
   if (!vertical) {
-    return NextResponse.json(
-      { error: `Unknown vertical: ${verticalId}. Available: hvac, plumber, electrician.` },
-      { status: 400 }
+    return jsonError(
+      `Unknown vertical: ${verticalId}. Available: hvac, plumber, electrician.`,
+      400
     );
   }
 
   const userHistory = Array.isArray(body.messages) ? body.messages : [];
   if (userHistory.length === 0) {
-    return NextResponse.json({ error: 'messages array required' }, { status: 400 });
+    return jsonError('messages array required', 400);
   }
 
   const austinTime = new Date().toLocaleString('en-US', {
@@ -84,95 +94,186 @@ export async function POST(req: NextRequest) {
     })),
   ];
 
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
-  const toolTrace: ToolTrace[] = [];
+  const model = process.env.OPENROUTER_MODEL || 'openrouter/free';
 
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const llmResp = await callOpenRouter(apiKey, model, messages, vertical.tools);
-    if (!llmResp.ok) {
-      return NextResponse.json(
-        { error: `LLM error: ${llmResp.status} ${llmResp.text.slice(0, 300)}` },
-        { status: 502 }
-      );
-    }
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const enc = new TextEncoder();
+      const send = (obj: Record<string, unknown>) => {
+        controller.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      };
 
-    const choice = llmResp.data.choices?.[0];
-    const assistantMsg = choice?.message;
-    if (!assistantMsg) {
-      return NextResponse.json({ error: 'LLM returned no message' }, { status: 502 });
-    }
-
-    if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
-      return NextResponse.json({
-        reply: assistantMsg.content ?? '',
-        tool_calls: toolTrace,
-        iterations: i + 1,
-        vertical: verticalId,
-      });
-    }
-
-    messages.push({
-      role: 'assistant',
-      content: assistantMsg.content ?? null,
-      tool_calls: assistantMsg.tool_calls,
-    } as ChatMessage);
-
-    for (const tc of assistantMsg.tool_calls) {
-      const name = tc.function?.name ?? 'unknown';
-      let args: Record<string, unknown> = {};
       try {
-        args = JSON.parse(tc.function?.arguments || '{}');
-      } catch {
-        args = {};
+        send({ type: 'status', message: 'Thinking...' });
+
+        for (let i = 0; i < MAX_ITERATIONS; i++) {
+          const upstream = await fetch(OPENROUTER_URL, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://dispatch-agent-seven.vercel.app',
+              'X-Title': 'Dispatch Agent - Multi-Vertical Receptionist',
+            },
+            body: JSON.stringify({
+              model,
+              messages,
+              tools: vertical.tools,
+              tool_choice: 'auto',
+              temperature: 0.5,
+              stream: true,
+            }),
+          });
+
+          if (!upstream.ok || !upstream.body) {
+            const txt = upstream.body ? await upstream.text() : '(no body)';
+            send({
+              type: 'error',
+              message: `LLM error: ${upstream.status} ${txt.slice(0, 300)}`,
+            });
+            controller.close();
+            return;
+          }
+
+          // Parse SSE stream from OpenRouter, accumulate tool calls + emit tokens
+          const reader = upstream.body.getReader();
+          const dec = new TextDecoder();
+          let buffer = '';
+          let assistantContent = '';
+          const accumulated: AccumulatedToolCall[] = [];
+
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += dec.decode(value, { stream: true });
+
+            // SSE messages are separated by \n\n
+            const parts = buffer.split('\n\n');
+            buffer = parts.pop() ?? '';
+
+            for (const part of parts) {
+              const dataLine = part
+                .split('\n')
+                .find((l) => l.startsWith('data:'));
+              if (!dataLine) continue;
+              const dataStr = dataLine.slice(5).trim();
+              if (!dataStr || dataStr === '[DONE]') continue;
+
+              let chunk: {
+                choices?: Array<{
+                  delta?: {
+                    content?: string;
+                    tool_calls?: Array<{
+                      index: number;
+                      id?: string;
+                      function?: { name?: string; arguments?: string };
+                    }>;
+                  };
+                }>;
+              };
+              try {
+                chunk = JSON.parse(dataStr);
+              } catch {
+                continue;
+              }
+
+              const delta = chunk.choices?.[0]?.delta;
+              if (!delta) continue;
+
+              if (delta.content) {
+                assistantContent += delta.content;
+                send({ type: 'token', token: delta.content });
+              }
+
+              if (delta.tool_calls) {
+                for (const tc of delta.tool_calls) {
+                  const idx = tc.index;
+                  if (!accumulated[idx]) {
+                    accumulated[idx] = { id: tc.id ?? `tc-${idx}`, name: '', arguments: '' };
+                  }
+                  if (tc.id && !accumulated[idx].id) {
+                    accumulated[idx].id = tc.id;
+                  }
+                  if (tc.function?.name) {
+                    accumulated[idx].name += tc.function.name;
+                  }
+                  if (tc.function?.arguments) {
+                    accumulated[idx].arguments += tc.function.arguments;
+                  }
+                }
+              }
+            }
+          }
+
+          // Stream of this round finished
+          if (accumulated.length === 0) {
+            // No tools called → we're done
+            send({ type: 'done', iterations: i + 1 });
+            controller.close();
+            return;
+          }
+
+          // Push the assistant turn with its tool_calls into the running history
+          messages.push({
+            role: 'assistant',
+            content: assistantContent || null,
+            tool_calls: accumulated.map((a) => ({
+              id: a.id,
+              type: 'function' as const,
+              function: { name: a.name, arguments: a.arguments },
+            })),
+          });
+
+          // Execute each tool and emit progress events
+          for (const tc of accumulated) {
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(tc.arguments || '{}');
+            } catch {
+              args = {};
+            }
+            send({ type: 'tool_call', name: tc.name, arguments: args });
+
+            const result = await vertical.handler(tc.name, args);
+            send({ type: 'tool_result', name: tc.name, arguments: args, result });
+
+            messages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: JSON.stringify(result),
+            });
+          }
+
+          send({ type: 'status', message: 'Composing reply...' });
+          // Loop continues — next iteration calls LLM again with tool results
+        }
+
+        send({
+          type: 'error',
+          message: `Reached max iterations (${MAX_ITERATIONS}). Model stuck in tool loop.`,
+        });
+        controller.close();
+      } catch (err) {
+        send({ type: 'error', message: (err as Error).message || 'stream failed' });
+        controller.close();
       }
-      const result = await vertical.handler(name, args);
-      toolTrace.push({ name, arguments: args, result });
-      messages.push({
-        role: 'tool',
-        tool_call_id: tc.id,
-        content: JSON.stringify(result),
-      });
-    }
-  }
-
-  return NextResponse.json(
-    {
-      error: `Reached max iterations (${MAX_ITERATIONS}). The model is stuck in a tool loop.`,
-      tool_calls: toolTrace,
-      vertical: verticalId,
     },
-    { status: 500 }
-  );
-}
-
-async function callOpenRouter(
-  apiKey: string,
-  model: string,
-  messages: ChatMessage[],
-  tools: unknown
-): Promise<
-  | { ok: true; data: { choices?: Array<{ message?: { content?: string | null; tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }> } }> } }
-  | { ok: false; status: number; text: string }
-> {
-  const r = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://dispatch-agent-seven.vercel.app',
-      'X-Title': 'Dispatch Agent - Multi-Vertical Receptionist',
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      tools,
-      tool_choice: 'auto',
-      temperature: 0.5,
-    }),
   });
 
-  if (!r.ok) {
-    return { ok: false, status: r.status, text: await r.text() };
-  }
-  return { ok: true, data: await r.json() };
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no', // disable nginx buffering on Vercel edge
+    },
+  });
+}
+
+function jsonError(message: string, status: number) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }

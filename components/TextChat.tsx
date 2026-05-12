@@ -13,10 +13,12 @@ import { useState, useRef, useEffect } from 'react';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  /** Live status ("Thinking..." / "Composing reply...") shown in-bubble while streaming. */
+  status?: string;
   tool_calls?: Array<{
     name: string;
     arguments: Record<string, unknown>;
-    result: unknown;
+    result?: unknown; // undefined while running, set on tool_result event
   }>;
 }
 
@@ -51,10 +53,28 @@ export default function TextChat({
     if (!trimmed || loading) return;
     setError(null);
 
-    const next: Message[] = [...messages, { role: 'user', content: trimmed }];
-    setMessages(next);
+    // Add the user message + a placeholder assistant message that we'll
+    // mutate as SSE events stream in.
+    const userMsg: Message = { role: 'user', content: trimmed };
+    const placeholder: Message = {
+      role: 'assistant',
+      content: '',
+      status: 'Thinking\u2026',
+      tool_calls: [],
+    };
+    const baseHistory = [...messages, userMsg];
+    setMessages([...baseHistory, placeholder]);
     setInput('');
     setLoading(true);
+
+    /** Mutate the in-flight assistant message via setState. */
+    const updatePlaceholder = (mut: (m: Message) => Message) => {
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (!last || last.role !== 'assistant') return prev;
+        return [...prev.slice(0, -1), mut(last)];
+      });
+    };
 
     try {
       const r = await fetch('/api/chat', {
@@ -62,23 +82,107 @@ export default function TextChat({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           vertical: verticalId,
-          messages: next.map((m) => ({ role: m.role, content: m.content })),
+          messages: baseHistory.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
-      const data = await r.json();
-      if (!r.ok || data.error) {
-        setError(data.error || `HTTP ${r.status}`);
-        setMessages(next); // keep user message visible
+      if (!r.ok || !r.body) {
+        const errBody = await r.json().catch(() => ({}));
+        setError(errBody.error || `HTTP ${r.status}`);
+        // drop the placeholder so the UI doesn't show empty bubble
+        setMessages(baseHistory);
         return;
       }
-      setMessages([
-        ...next,
-        {
-          role: 'assistant',
-          content: data.reply || '(no reply)',
-          tool_calls: data.tool_calls,
-        },
-      ]);
+
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let streamErrored = false;
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() ?? '';
+
+        for (const part of parts) {
+          const line = part.split('\n').find((l) => l.startsWith('data:'));
+          if (!line) continue;
+          const dataStr = line.slice(5).trim();
+          if (!dataStr) continue;
+
+          let evt: { type: string } & Record<string, unknown>;
+          try {
+            evt = JSON.parse(dataStr);
+          } catch {
+            continue;
+          }
+
+          switch (evt.type) {
+            case 'status':
+              updatePlaceholder((m) => ({ ...m, status: String(evt.message ?? '') }));
+              break;
+
+            case 'token':
+              updatePlaceholder((m) => ({
+                ...m,
+                content: m.content + String(evt.token ?? ''),
+                status: undefined,
+              }));
+              break;
+
+            case 'tool_call':
+              updatePlaceholder((m) => ({
+                ...m,
+                status: `\ud83d\udd27 ${evt.name}\u2026`,
+                tool_calls: [
+                  ...(m.tool_calls ?? []),
+                  {
+                    name: String(evt.name),
+                    arguments: (evt.arguments as Record<string, unknown>) ?? {},
+                  },
+                ],
+              }));
+              break;
+
+            case 'tool_result':
+              updatePlaceholder((m) => {
+                const calls = m.tool_calls ?? [];
+                const idx = calls
+                  .map((c, i) => ({ c, i }))
+                  .reverse()
+                  .find(({ c }) => c.name === evt.name && c.result === undefined);
+                if (!idx) return m;
+                const next = calls.slice();
+                next[idx.i] = { ...next[idx.i], result: evt.result };
+                return { ...m, tool_calls: next };
+              });
+              break;
+
+            case 'done':
+              updatePlaceholder((m) => ({ ...m, status: undefined }));
+              break;
+
+            case 'error':
+              streamErrored = true;
+              setError(String(evt.message ?? 'stream error'));
+              break;
+          }
+        }
+      }
+
+      if (streamErrored) {
+        // Remove the placeholder if no content was produced
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant' && !last.content && (!last.tool_calls || last.tool_calls.length === 0)) {
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
+      }
     } catch (e) {
       setError((e as Error).message || 'Network error');
     } finally {
@@ -113,17 +217,6 @@ export default function TextChat({
         {messages.map((m, i) => (
           <MessageBubble key={i} msg={m} />
         ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl bg-slate-100 px-4 py-2 text-sm text-slate-500 dark:bg-slate-800">
-              <span className="inline-flex gap-1">
-                <Dot delay={0} />
-                <Dot delay={150} />
-                <Dot delay={300} />
-              </span>
-            </div>
-          </div>
-        )}
         {error && (
           <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
             <strong>Error:</strong> {error}
@@ -178,20 +271,41 @@ export default function TextChat({
 
 function MessageBubble({ msg }: { msg: Message }) {
   const isUser = msg.role === 'user';
+  const showStatusBubble = !isUser && !msg.content && msg.status;
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div className="max-w-[80%] space-y-2">
-        <div
-          className={`whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm ${
-            isUser
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
-          }`}
-        >
-          {msg.content}
-        </div>
-        {msg.tool_calls && msg.tool_calls.length > 0 && (
+        {/* Tool calls render BEFORE the reply so user sees them as they fire */}
+        {!isUser && msg.tool_calls && msg.tool_calls.length > 0 && (
           <ToolTrace calls={msg.tool_calls} />
+        )}
+
+        {/* Status pill (shown while tools run / before any token arrives) */}
+        {showStatusBubble && (
+          <div className="flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2 text-sm text-slate-500 dark:bg-slate-800">
+            <span className="inline-flex gap-1">
+              <Dot delay={0} />
+              <Dot delay={150} />
+              <Dot delay={300} />
+            </span>
+            <span className="text-xs">{msg.status}</span>
+          </div>
+        )}
+
+        {/* Main content bubble (renders once tokens start arriving) */}
+        {(isUser || msg.content) && (
+          <div
+            className={`whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm ${
+              isUser
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
+            }`}
+          >
+            {msg.content}
+            {!isUser && msg.status && msg.content && (
+              <span className="ml-1 inline-block animate-pulse text-slate-400">▊</span>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -215,6 +329,9 @@ function ToolTrace({
             <span className="ml-1 text-amber-600 dark:text-amber-400">
               ({Object.keys(c.arguments).join(', ') || 'no args'})
             </span>
+            {c.result === undefined && (
+              <span className="ml-2 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+            )}
           </summary>
           <div className="mt-1 space-y-1 text-amber-900 dark:text-amber-100">
             <div>
@@ -223,7 +340,11 @@ function ToolTrace({
             </div>
             <div>
               <span className="font-semibold">result:</span>{' '}
-              <code className="font-mono">{JSON.stringify(c.result)}</code>
+              {c.result === undefined ? (
+                <span className="italic text-amber-700 dark:text-amber-300">running…</span>
+              ) : (
+                <code className="font-mono">{JSON.stringify(c.result)}</code>
+              )}
             </div>
           </div>
         </details>
