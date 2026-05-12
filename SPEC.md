@@ -1,6 +1,8 @@
 # Spec v2 — Voice Receptionist Agent
 
 > Status: **Active**. Pivoted from Service Dispatcher (v1) after Stage 0 validation revealed Housecall Pro AI already covers v1 scope.
+>
+> **Off-plan additions ahead of Phase 2 gate are logged in [§11](#11-off-plan-decision-log-case-law). Read before adding anything new.**
 
 ## 1. Product one-liner
 
@@ -104,16 +106,30 @@ Single Vapi assistant with system prompt + tools. **No multi-agent for MVP** —
 
 ## 8. Phase plan (35-50h total, time-boxed)
 
-| Phase | Hours | Scope | Exit criteria |
-|---|---|---|---|
-| **1 (MVP)** | **10h** | HVAC vertical, Web SDK call, basic landing | Can run a full booking flow in browser; deploy to Vercel preview |
-| 2 | 12h | Control panel: live transcript, call log, vertical switcher | Multi-vertical config, persistent call records |
-| 3 | 8h | n8n workflow: Google Calendar + Sheets + Slack escalation | Real bookings sync to external systems |
-| 4 | 8h | Add Dental + Beauty + Legal verticals | 4 verticals selectable, isolated prompts/KBs |
-| 5 | 4h | Landing polish + Loom 90s + Upwork portfolio entry | Ready to pitch |
-| 6 (opt) | 6h | Moving + multilingual (ES/ZH) | International reach |
+| Phase | Hours | Scope | Status | Exit criteria |
+|---|---|---|---|---|
+| **1 (MVP)** | **10h** | HVAC vertical, Web SDK call, basic landing | ✅ done | Full booking flow in browser; deployed to Vercel |
+| **1.5 (off-plan)** | ~6h actual | Multi-vertical factory + 3 extra verticals (plumber, electrician, dental) | ✅ done | 4 verticals share one factory; ~45 min to add a 5th |
+| **2.0 (off-plan, partial)** | ~1h actual | Supabase `appointments` table + persistence in `book_appointment` / `check_availability` | ✅ done | DB writes verified end-to-end in prod; in-memory fallback when env unset |
+| 2.1 | ~9h remaining | Admin dashboard `/admin/<vertical>`, `call_logs` table + writer, voice for plumber/electrician/dental | 🚫 gated | Owner can see live bookings + transcripts; voice for all 4 |
+| 3 | 8h | n8n workflow: Google Calendar + Sheets + Slack escalation | 🚫 gated | Real bookings sync to external systems |
+| 4 | 8h | Add Beauty + Legal + Moving verticals | 🚫 gated | 7 verticals selectable, isolated prompts/KBs |
+| 5 | 4h | Landing polish + Loom 90s + Upwork portfolio entry | partial | Demo video recorded, posted, source on GitHub |
+| 6 (opt) | 6h | Multilingual (ES/ZH) | 🚫 gated | International reach |
 
-**Gate after Phase 1**: invest in Phase 2 only if 5 Upwork pitches get ≥1 substantive reply.
+### ⛔️ Hard gate before any 🚫 work
+
+**Zero new feature work past Phase 2.0 until ALL of:**
+1. 5 Upwork pitches sent (templates in `docs/UPWORK_PITCH.md`).
+2. ≥1 **substantive** reply received. "Substantive" = a human who:
+   - Watched the demo OR clicked the live URL, AND
+   - Asks a follow-up question OR proposes a call.
+   - Form letters / auto-rejects / `"interested, send portfolio"` do NOT count.
+3. Reply was within 14 days of pitch (signal decays fast).
+
+**Allowed without the gate**: bug fixes, doc updates, refactors that don't add features, prompt-tuning for existing verticals, recording the demo video.
+
+**If 5 pitches → 0 substantive replies**: do NOT build more. Iterate on pitch positioning + vertical selection instead. The bottleneck is external signal, not code.
 
 ## 9. Cost ceiling
 
@@ -131,3 +147,35 @@ Single Vapi assistant with system prompt + tools. **No multi-agent for MVP** —
 | Housecall Pro / ServiceTitan AI catches up | M | Differentiate on multi-vertical + open architecture + accent handling |
 | Voice quality poor on accents | M | Use Vapi's `eleven-labs-multilingual-v2` voice; verify in Phase 1 |
 | Side-project momentum loss | H | Hard 10h Phase 1 gate; pivot or stop based on Upwork response |
+| **Builder-mindset scope creep** | **H** | **§11 case-law log + hard gate language in §8. Cascade and human review every "what's next?" question against gate before starting work.** |
+
+## 11. Off-plan decision log (case law)
+
+Log of work done before its phase gate unlocked, why, and the lesson. Future
+"what's next?" decisions should consult this section to avoid repeating the
+same justifications.
+
+### 2026-05-12 morning — Multi-vertical factory + 3 extra verticals (Phase 1.5)
+
+- **Spec said**: Phase 4, after Upwork validation
+- **Built**: `lib/verticals/build-tools.ts` factory + plumber + electrician + dental
+- **Cost**: ~6h
+- **Trigger**: Refactoring HVAC into a generic factory felt like part of Phase 1 polish. Once the factory existed, adding 3 more verticals was "30 min each".
+- **Verdict**: Scope creep, but with high cohesion (real engineering signal for portfolio recruiters). The factory was probably justified; the 3 extra verticals could have waited until at least one Upwork reply asked about a non-HVAC industry.
+- **Lesson**: "It's only 30 minutes" × 4 = 2 hours. Time-box the refactor; don't let it expand into adding new business logic.
+
+### 2026-05-12 PM — Supabase `appointments` persistence (Phase 2.0)
+
+- **Spec said**: Phase 2, gated on Upwork reply
+- **Built**: Schema migration, `lib/supabase.ts` (admin client + persistBooking + fetchBookedSlotIds with timestamptz round-trip fix), factory integration, e2e test script (`npm run test:supabase`)
+- **Cost**: ~1h dev + 2 commits + 1 schema migration
+- **Trigger**: Cascade proposed `/admin/<vertical>` dashboard as "highest demo value next step". Human reviewed against §8 gate and called the violation. Persistence work was already done by then.
+- **Verdict**: Borderline justified. The factory's `book_appointment` was returning fake `AA-XXXXXX` confirmation numbers that were not actually persisted — a sophisticated viewer of the demo would notice this is a stub. The Supabase wiring upgrades the demo from "plausible mock" to "actually-persisting prototype" without changing the surface UX. Cost was small, in-memory fallback means zero risk if env vars removed.
+- **What was NOT built (correctly held back)**: `/admin/<vertical>` dashboard, `call_logs` table, voice for plumber/electrician/dental — those remain Phase 2.1 and gated.
+- **Lesson**: Cascade pattern-match on "highest demo value" is biased toward building. Always cross-check against §8 gate before opening editor. The right move was to skip persistence too and trust that the existing tool-trace badges in the demo video (showing `🔧 book_appointment → AA-7B2K`) carry the same proof-of-execution signal at zero infra cost.
+
+### Going forward (current as of 2026-05-12)
+
+- **Next valid action**: record demo video + send 5 Upwork pitches.
+- **Next valid feature work**: only after §8 hard gate satisfies.
+- **If a "small" tactical refactor seems urgent**: ask "will this be visible in the 30s video or change a pitch line?" If no, it waits.
