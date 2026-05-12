@@ -1,13 +1,13 @@
 import VerticalDemo from '@/components/VerticalDemo';
 import { getVerticalMeta, listVerticalsMeta } from '@/lib/verticals/registry';
 
-export default function HvacDemoPage() {
+export default function ElectricianDemoPage() {
   return (
     <VerticalDemo
-      vertical={getVerticalMeta('hvac')}
+      vertical={getVerticalMeta('electrician')}
       allVerticals={listVerticalsMeta()}
       publicKey={process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY ?? ''}
-      assistantId={process.env.NEXT_PUBLIC_VAPI_HVAC_ASSISTANT_ID ?? ''}
+      assistantId=""
     />
   );
 }

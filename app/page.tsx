@@ -53,7 +53,7 @@ export default function Home() {
                   className="rounded-xl border border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-950 p-4 text-center hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors"
                 >
                   <div className="font-medium mb-1">{v.label}</div>
-                  <div className="text-xs text-zinc-500">✅ Live demo</div>
+                  <div className="text-xs text-emerald-700 dark:text-emerald-300">✅ {v.mode}</div>
                 </Link>
               ) : (
                 <div
@@ -61,7 +61,7 @@ export default function Home() {
                   className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 text-center opacity-60"
                 >
                   <div className="font-medium mb-1">{v.label}</div>
-                  <div className="text-xs text-zinc-500">Phase 4 (planned)</div>
+                  <div className="text-xs text-zinc-500">Roadmap</div>
                 </div>
               )
             )}
@@ -77,11 +77,11 @@ export default function Home() {
 }
 
 const VERTICALS = [
-  { label: 'HVAC', href: '/demo/hvac', live: true },
-  { label: 'Dental', href: '#', live: false },
-  { label: 'Beauty & Spa', href: '#', live: false },
-  { label: 'Legal Intake', href: '#', live: false },
-  { label: 'Moving', href: '#', live: false },
+  { label: '🔥 HVAC', href: '/demo/hvac', live: true, mode: 'Voice + text' },
+  { label: '🚰 Plumbing', href: '/demo/plumber', live: true, mode: 'Text only' },
+  { label: '⚡ Electrical', href: '/demo/electrician', live: true, mode: 'Text only' },
+  { label: 'Dental', href: '#', live: false, mode: '' },
+  { label: 'Legal Intake', href: '#', live: false, mode: '' },
 ];
 
 function Stat({ label, value }: { label: string; value: string }) {
