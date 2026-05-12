@@ -59,21 +59,25 @@ export default function VerticalDemo({
           ))}
         </div>
 
-        <div className="mb-10">
-          <p className="text-sm uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-3">
+        <div className="mb-8">
+          <div className="mb-3 inline-flex items-center gap-2 text-sm uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+            <span className="relative inline-flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
             Live Demo · {vertical.label} Receptionist
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight mb-3">Meet {vertical.agentName}.</h1>
+          <p className="text-lg text-zinc-600 dark:text-zinc-400 mb-4">
+            AI receptionist for <strong>{vertical.businessName}</strong>. Describe a problem, say
+            it's an emergency, or ask for a price estimate — watch the tool calls fire live.
           </p>
-          <h1 className="text-4xl font-bold tracking-tight mb-4">Meet {vertical.agentName}.</h1>
-          <p className="text-lg text-zinc-600 dark:text-zinc-400">
-            {vertical.agentName} is the AI receptionist for {vertical.businessName}. Try booking
-            an appointment — describe a problem, say it&apos;s an emergency, or ask for a price
-            estimate.
-          </p>
-          <p className="mt-2 text-sm text-zinc-500">
-            Same architecture as every other vertical here: shared system prompt scaffold + the
-            same 4 tools (check_availability, book_appointment, escalate_to_owner,
-            get_quote_range). Only the industry vocabulary and data differ.
-          </p>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Chip>⚡ SSE streaming</Chip>
+            <Chip>🔧 4 typed tools</Chip>
+            <Chip>📦 shared factory</Chip>
+            <Chip>🔓 open source</Chip>
+          </div>
         </div>
 
         {/* Mode tabs (only if voice is available for this vertical) */}
@@ -157,6 +161,14 @@ export default function VerticalDemo({
         </details>
       </div>
     </main>
+  );
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+      {children}
+    </span>
   );
 }
 
