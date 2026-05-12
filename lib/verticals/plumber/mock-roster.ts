@@ -47,7 +47,8 @@ export const PLUMBER_TECHNICIANS: Technician[] = [
 
 export function findNextAvailableSlot(
   urgency: Urgency = 'same-day',
-  skills: string[] = []
+  skills: string[] = [],
+  externalBookedIds: Set<string> = new Set()
 ): SlotMatch | null {
-  return findNextAvailableSlotFrom(PLUMBER_TECHNICIANS, urgency, skills);
+  return findNextAvailableSlotFrom(PLUMBER_TECHNICIANS, urgency, skills, externalBookedIds);
 }

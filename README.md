@@ -391,8 +391,24 @@ Production estimate at **100 calls/month**: ~$30–$60/mo all-in. See [`docs/COS
 
 - ✅ **Phase 1 (MVP)** — backend live, smoke checks passing on production, voice + text both working
 - ✅ **Phase 1.5 (Multi-vertical)** — 4 industries (HVAC / plumbing / electrical / dental) sharing the factory, categorized random prompts, SSE streaming, Edge runtime
-- 🚧 **Phase 2** — Supabase persistence (call logs, appointments, customers), per-tenant dashboards, voice mode for all verticals
+- ✅ **Phase 2.0 (Persistence foundation)** — Supabase wired in: `appointments` table created, `book_appointment` persists rows, `check_availability` filters DB-booked slots out of the slot search. Opt-in via `SUPABASE_SERVICE_ROLE_KEY` env var; falls back to in-memory when unset.
+- 🚧 **Phase 2.1** — `call_logs` table for analytics, owner dashboard at `/admin/<vertical>`, voice mode flipped on for plumber/electrician/dental
 - 📅 **Phase 3** — Twilio number provisioning, post-call analytics, multi-tenant deployment template, legal-intake vertical (different tool shape from receptionist booking)
+
+### Enabling persistence
+
+```bash
+# 1. Grab the service-role key from your Supabase dashboard:
+#    Settings → API → service_role (NOT anon)
+# 2. Add to .env.local:
+echo 'SUPABASE_SERVICE_ROLE_KEY=eyJ...' >> .env.local
+# 3. Restart dev: npm run dev
+# 4. Add the same env var in Vercel dashboard, then redeploy.
+```
+
+When configured, every `book_appointment` writes a row to `public.appointments`,
+and every `check_availability` excludes DB-booked slots — so a slot booked in
+one conversation can't be re-offered in another.
 
 ---
 

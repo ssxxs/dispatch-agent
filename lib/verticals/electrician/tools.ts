@@ -4,7 +4,7 @@
  */
 
 import { buildVerticalTools, type ToolResult } from '../build-tools';
-import { findNextAvailableSlot } from './mock-roster';
+import { findNextAvailableSlot, ELECTRICIAN_TECHNICIANS } from './mock-roster';
 import {
   getQuoteRange,
   OWNER_AFTER_HOURS_PHONE,
@@ -12,6 +12,8 @@ import {
 } from './business-rules';
 
 const built = buildVerticalTools({
+  verticalId: 'electrician',
+  roster: ELECTRICIAN_TECHNICIANS,
   findNextAvailableSlot,
   getQuoteRange,
   ownerPhone: OWNER_AFTER_HOURS_PHONE,

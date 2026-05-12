@@ -12,12 +12,29 @@
  * agentic loop can plug straight into.
  */
 
-import type { Urgency } from '@/lib/types';
+import type { Technician, Urgency } from '@/lib/types';
 import type { SlotMatch } from './shared-roster';
+import type { VerticalId } from './registry';
+import {
+  fetchBookedSlotIds,
+  parseSlotId,
+  persistBooking,
+} from '@/lib/supabase';
 
 export interface VerticalToolConfig {
-  /** Find the next available slot in this vertical's roster. */
-  findNextAvailableSlot: (urgency: Urgency, skills?: string[]) => SlotMatch | null;
+  /** Vertical id used for DB-side filtering of bookings. */
+  verticalId: VerticalId;
+  /** Roster snapshot used to resolve technician metadata when booking. */
+  roster: Technician[];
+  /**
+   * Find the next available slot. The handler injects DB-side booked ids
+   * before calling this so we can hide already-persisted bookings.
+   */
+  findNextAvailableSlot: (
+    urgency: Urgency,
+    skills?: string[],
+    externalBookedIds?: Set<string>
+  ) => SlotMatch | null;
   /** Look up a quote range for a known issue type. */
   getQuoteRange: (issueType: string) => { low: number; high: number; notes?: string };
   /** After-hours owner phone returned by escalate_to_owner. */
@@ -151,7 +168,10 @@ export function buildVerticalTools(cfg: VerticalToolConfig): BuiltVertical {
         case 'check_availability': {
           const urgency = (params.urgency as Urgency) ?? 'same-day';
           const skills = (params.needed_skills as string[] | undefined) ?? [];
-          const match = cfg.findNextAvailableSlot(urgency, skills);
+          // Hide DB-persisted bookings before slot selection. Empty set when
+          // Supabase env isn't configured — degrades gracefully.
+          const externalBookedIds = await fetchBookedSlotIds(cfg.verticalId);
+          const match = cfg.findNextAvailableSlot(urgency, skills, externalBookedIds);
           return match
             ? {
                 available: true,
@@ -181,11 +201,53 @@ export function buildVerticalTools(cfg: VerticalToolConfig): BuiltVertical {
           if (missing.length) {
             return { error: `Missing required fields: ${missing.join(', ')}` };
           }
-          const confirmation = `${prefix}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+
+          const slotId = params.slot_id as string;
+          const parsed = parseSlotId(slotId);
+          if (!parsed) {
+            return { error: `Invalid slot_id "${slotId}". Expected "<technicianId>|<ISO start>".` };
+          }
+
+          const tech = cfg.roster.find((t) => t.id === parsed.technicianId);
+          if (!tech) {
+            return { error: `Unknown technician id: ${parsed.technicianId}` };
+          }
+
+          const slotStart = new Date(parsed.slotStartISO);
+          if (Number.isNaN(slotStart.getTime())) {
+            return { error: `Could not parse slot start time: "${parsed.slotStartISO}"` };
+          }
+          const slotEnd = new Date(slotStart.getTime() + 2 * 60 * 60 * 1000);
+
+          let booking;
+          try {
+            booking = await persistBooking({
+              verticalId: cfg.verticalId,
+              technicianId: tech.id,
+              technicianName: tech.name,
+              slotStartISO: parsed.slotStartISO,
+              slotEndISO: slotEnd.toISOString(),
+              callerName: params.caller_name as string,
+              callerPhone: params.caller_phone as string,
+              address: ((params.address as string) ?? null) || null,
+              issue: params.issue as string,
+              urgency: params.urgency as Urgency,
+            });
+          } catch (e) {
+            return { error: (e as Error).message };
+          }
+
+          const persistedNote = booking.persisted
+            ? 'Saved to DB.'
+            : 'In-memory only (Supabase not configured).';
           return {
             success: true,
-            confirmation_number: confirmation,
-            message: `Booked ${params.caller_name} (${params.urgency}) for ${params.slot_id} re: ${params.issue}. SMS confirmation to ${params.caller_phone} in ~60s.`,
+            confirmation_number: `${prefix}-${booking.confirmationNumber}`,
+            persisted: booking.persisted,
+            technician_name: tech.name,
+            window_start: parsed.slotStartISO,
+            window_end: slotEnd.toISOString(),
+            message: `Booked ${params.caller_name} (${params.urgency}) with ${tech.name}, ${parsed.slotStartISO}. ${persistedNote} SMS confirmation to ${params.caller_phone} in ~60s.`,
           };
         }
 

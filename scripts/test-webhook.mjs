@@ -89,19 +89,34 @@ async function run() {
     log('check_availability scheduled+furnace', false, e.message);
   }
 
-  // 3. book_appointment happy path
+  // 3. book_appointment happy path — must use a real slot_id from check_availability
+  //    (format: "<technicianId>|<ISO start>"). Pre-Phase-2 the handler accepted
+  //    arbitrary strings; now it validates the format and looks up the technician.
   console.log('\nbook_appointment');
   try {
-    const r = await callTool('book_appointment', {
-      caller_name: 'Test Caller',
-      caller_phone: '5125550199',
-      address: '123 Main St, Austin TX 78701',
-      slot_id: 'slot_1',
-      issue: 'AC blowing warm air',
-      urgency: 'same-day',
-    });
-    log('booking returns success=true', r?.success === true);
-    log('booking returns confirmation_number', typeof r?.confirmation_number === 'string' && r.confirmation_number.startsWith('AA-'));
+    const slot = await callTool('check_availability', { urgency: 'scheduled' });
+    if (!slot?.slot_id) {
+      log('book_appointment happy', false, 'no slot_id from check_availability');
+    } else {
+      const r = await callTool('book_appointment', {
+        caller_name: 'Test Caller',
+        caller_phone: '5125550199',
+        address: '123 Main St, Austin TX 78701',
+        slot_id: slot.slot_id,
+        issue: 'AC blowing warm air',
+        urgency: 'same-day',
+      });
+      log('booking returns success=true', r?.success === true);
+      log(
+        'booking returns AA- confirmation_number',
+        typeof r?.confirmation_number === 'string' && r.confirmation_number.startsWith('AA-')
+      );
+      log('booking response includes technician_name', typeof r?.technician_name === 'string');
+      log(
+        'booking response includes persisted flag',
+        typeof r?.persisted === 'boolean'
+      );
+    }
   } catch (e) {
     log('book_appointment happy', false, e.message);
   }

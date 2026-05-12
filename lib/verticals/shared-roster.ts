@@ -48,11 +48,17 @@ export function nextNDaysSlots(
  * Find the next available slot across any of the given technicians.
  * Honors urgency ("emergency" = within 4h, "same-day" = same calendar day)
  * and optional skill filters.
+ *
+ * `externalBookedIds` lets the handler hide slots that are persisted as
+ * booked in the database. The slot id format is `${technicianId}|${ISO start}`.
+ * When Supabase isn't configured this set is empty and we fall back to the
+ * in-roster `slot.booked` flag alone.
  */
 export function findNextAvailableSlotFrom(
   technicians: Technician[],
   urgency: Urgency = 'same-day',
-  skills: string[] = []
+  skills: string[] = [],
+  externalBookedIds: Set<string> = new Set()
 ): SlotMatch | null {
   const matching = technicians.filter(
     (t) => skills.length === 0 || skills.some((s) => t.skills.includes(s))
@@ -65,6 +71,8 @@ export function findNextAvailableSlotFrom(
   for (const tech of matching) {
     for (const slot of tech.availability) {
       if (slot.booked) continue;
+      const slotId = `${tech.id}|${slot.start}`;
+      if (externalBookedIds.has(slotId)) continue;
       const slotStart = new Date(slot.start);
       if (slotStart < now) continue;
       if (urgency === 'same-day' && !slot.start.startsWith(todayStr)) continue;
@@ -74,7 +82,7 @@ export function findNextAvailableSlotFrom(
         technicianId: tech.id,
         technicianName: tech.name,
         area: tech.area,
-        slotId: `${tech.id}|${slot.start}`,
+        slotId,
         windowStart: slot.start,
         windowEnd: slot.end,
       };
