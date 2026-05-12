@@ -170,7 +170,7 @@ async function main() {
     firstMessage: 'Thanks for calling AustinAir, this is Riley. How can I help today?',
     model: {
       provider: 'openrouter',
-      model: 'google/gemini-2.0-flash-exp:free',
+      model: 'openrouter/free',
       temperature: 0.5,
       messages: [{ role: 'system', content: systemPrompt }],
       tools: buildTools(serverUrl),
