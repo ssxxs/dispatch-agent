@@ -7,7 +7,7 @@ export default function ElectricianDemoPage() {
       vertical={getVerticalMeta('electrician')}
       allVerticals={listVerticalsMeta()}
       publicKey={process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY ?? ''}
-      assistantId=""
+      assistantId={process.env.NEXT_PUBLIC_VAPI_ELECTRICIAN_ASSISTANT_ID ?? ''}
     />
   );
 }

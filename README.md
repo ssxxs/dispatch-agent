@@ -229,16 +229,38 @@ npm run test:webhook
 WEBHOOK_URL=https://your-deployment.vercel.app/api/vapi-webhook npm run test:webhook
 ```
 
-### Sync the assistant config to Vapi
+### Sync the assistant config to Vapi (per vertical)
+
+The sync script is **vertical-aware and auto-creates** assistants on first run.
+Pick any of the four:
 
 ```bash
-# Pushes prompt + 4 tools + voice + STT settings to your Vapi assistant.
-# Idempotent — safe to run repeatedly.
-npm run sync:hvac
+npm run sync:hvac          # Riley (AustinAir HVAC)
+npm run sync:plumber       # Sam (HillCountry Plumbing)
+npm run sync:electrician   # Alex (BoltCity Electric)
+npm run sync:dental        # Jordan (BrightSmile Dental)
+```
 
-# Override the webhook URL for production:
+**First run** for a vertical (no `NEXT_PUBLIC_VAPI_<X>_ASSISTANT_ID` env var yet):
+- POSTs to `/assistant` with the vertical's prompt + 4 typed tools + Vapi voice + Deepgram STT.
+- Prints the new UUID with a copy-paste line for `.env.local` and your hosting env vars.
+
+**Subsequent runs**: PATCHes the existing assistant idempotently (push new prompt or tool changes).
+
+```bash
+# Override the webhook URL when syncing for production (default: NEXT_PUBLIC_APP_URL):
 VAPI_SERVER_URL=https://your-deployment.vercel.app/api/vapi-webhook npm run sync:hvac
 ```
+
+**To enable the voice tab in the UI** for plumber/electrician/dental:
+1. Run the sync command above for the vertical → copy the printed UUID.
+2. Add `NEXT_PUBLIC_VAPI_<VERTICAL>_ASSISTANT_ID=...` to `.env.local` AND Vercel env.
+3. Flip `voiceAvailable: false` → `true` in `lib/verticals/registry.ts` for that vertical.
+4. Re-deploy. The 🎙️ Voice tab now appears on `/demo/<vertical>`.
+
+This three-step (sync → env → flag) gate is intentional: the registry flag is the
+single source of truth for "this vertical is shipping voice", so the UI never
+shows a voice tab that 404s.
 
 ---
 

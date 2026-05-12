@@ -7,7 +7,7 @@ export default function DentalDemoPage() {
       vertical={getVerticalMeta('dental')}
       allVerticals={listVerticalsMeta()}
       publicKey={process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY ?? ''}
-      assistantId=""
+      assistantId={process.env.NEXT_PUBLIC_VAPI_DENTAL_ASSISTANT_ID ?? ''}
     />
   );
 }

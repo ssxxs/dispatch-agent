@@ -7,7 +7,7 @@ export default function PlumberDemoPage() {
       vertical={getVerticalMeta('plumber')}
       allVerticals={listVerticalsMeta()}
       publicKey={process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY ?? ''}
-      assistantId=""
+      assistantId={process.env.NEXT_PUBLIC_VAPI_PLUMBER_ASSISTANT_ID ?? ''}
     />
   );
 }
