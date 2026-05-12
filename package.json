@@ -11,7 +11,8 @@
     "sync:plumber": "node --env-file=.env.local scripts/sync-vapi-assistant.mjs plumber",
     "sync:electrician": "node --env-file=.env.local scripts/sync-vapi-assistant.mjs electrician",
     "sync:dental": "node --env-file=.env.local scripts/sync-vapi-assistant.mjs dental",
-    "test:webhook": "node scripts/test-webhook.mjs"
+    "test:webhook": "node scripts/test-webhook.mjs",
+    "test:supabase": "node --env-file=.env.local scripts/test-supabase.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

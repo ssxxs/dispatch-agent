@@ -85,7 +85,14 @@ export async function fetchBookedSlotIds(verticalId: VerticalId): Promise<Set<st
     return new Set();
   }
 
-  return new Set(data.map((row) => `${row.technician_id}|${row.slot_start}`));
+  // Postgres serializes `timestamptz` with "+00:00" offset, but the in-roster
+  // slot ids are produced via `Date.toISOString()` which always emits "Z".
+  // Round-trip through Date so both sides use the same canonical form;
+  // otherwise the Set lookup would miss and DB-booked slots would still be
+  // offered to the next caller.
+  return new Set(
+    data.map((row) => `${row.technician_id}|${new Date(row.slot_start).toISOString()}`)
+  );
 }
 
 export interface BookAppointmentInput {
