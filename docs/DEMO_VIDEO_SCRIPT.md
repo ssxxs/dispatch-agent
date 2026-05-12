@@ -127,20 +127,50 @@ If a shot doesn't make a stranger think "I want this for my business" within 2 s
 Sanity-check every vertical works before you waste a take:
 
 ```bash
-# Run from any terminal. Each should return HTTP 200 + a tool_call.
-for V in hvac plumber electrician dental; do
-  echo "=== $V ==="
+# Run from any terminal. Each prompt is designed to fire a tool on turn 1
+# (not on "How much for service?" which the model often answers conversationally).
+# Each should return HTTP 200 + a `tool_call` event in the SSE stream.
+declare -a PROMPTS=(
+  "hvac|How much for a tune-up before summer?|get_quote_range"
+  "plumber|How much to replace a water heater?|get_quote_range"
+  "electrician|Burning smell from the electrical panel right now!|escalate_to_owner"
+  "dental|How much for a routine cleaning without insurance?|get_quote_range"
+)
+for row in "${PROMPTS[@]}"; do
+  IFS='|' read -r V PROMPT EXPECT <<< "$row"
+  echo "=== $V (expect $EXPECT) ==="
   curl -sS --max-time 30 -X POST https://dispatch-agent-seven.vercel.app/api/chat \
     -H 'content-type: application/json' \
-    -d "{\"vertical\":\"$V\",\"messages\":[{\"role\":\"user\",\"content\":\"How much for service?\"}]}" \
-    | head -c 200
+    -d "{\"vertical\":\"$V\",\"messages\":[{\"role\":\"user\",\"content\":\"$PROMPT\"}]}" \
+    | grep -o '"name":"[^"]*"' | head -1
   echo ""
 done
 ```
 
-If any vertical returns an error, **fix that first**. Free-model upstream can flap;
-if it's a 403/429, temporarily set `OPENROUTER_MODEL=openai/gpt-4o-mini` for the shoot
-(~$0.001/call, far more reliable than free GLM/Gemini).
+Expected output: every vertical prints the tool name it fired (`get_quote_range`,
+`escalate_to_owner`, etc.). If any vertical prints nothing or an `error`, **fix that
+first**.
+
+**Free-model rate-limit fallback chain** (in case the current model goes 429):
+1. `openai/gpt-oss-120b:free` — current production model, OpenAI-hosted, tool-friendly
+2. `minimax/minimax-m2.5:free` — backup, also fires tools well in our probes
+3. `openai/gpt-oss-20b:free` — smaller and slower backup but reliable
+4. Paid: `openai/gpt-4o-mini` (~\$0.001/call, requires OpenRouter top-up of \$5)
+
+Probe all candidates fast:
+
+```bash
+npm run -s test:supabase >/dev/null 2>&1 || true   # only needs OPENROUTER_API_KEY
+node --env-file=.env.local scripts/find-working-model.mjs
+```
+
+Update the model via Vercel CLI (no UI needed):
+
+```bash
+echo "y" | npx vercel env rm OPENROUTER_MODEL production
+printf '%s' 'openai/gpt-oss-120b:free' | npx vercel env add OPENROUTER_MODEL production
+npx vercel --prod --yes
+```
 
 ### Per-shot wall-clock budget (total ~25 min of shooting for a 30s clip)
 
@@ -180,9 +210,9 @@ These are what gets burned in for muted viewers. Match the timing in the shot li
 | 0–2 | `AI Receptionist — live demo` |
 | 6–10 | `Caller: "My AC stopped cooling. Can someone come today?"` |
 | 10–14 | `Riley (AI): "That sounds frustrating. Let me check..."` |
-| 14–18 | `🔧 check_availability  →  Marcus, today 2-4 PM` |
-| 18–22 | `Riley: "Booked. Confirmation AA-7B2K."` |
-| 22–24 | `🔧 book_appointment  →  AA-7B2K` |
+| 14–18 | `🔧 check_availability  →  Mike Sullivan, tomorrow 12–2 PM` |
+| 18–22 | `Riley: "Booked. Confirmation AA-B54011."` |
+| 22–24 | `🔧 book_appointment  →  AA-B54011  ·  persisted: true` |
 | 24–28 | `Caller: "Actually, water is flooding!"` `Riley: "That's an emergency — paging the owner now."` |
 | 28–30 | `dispatch-agent-seven.vercel.app  ·  source on GitHub` |
 
@@ -200,17 +230,23 @@ chips is faster and looks crisper on camera.
 3. Wait for the page to fully render (chat bubble + 3 example chips visible).
 4. Press `Cmd + Shift + 5` → pick "Record selected portion" → drag a tight crop
    around the chat panel only (~600×560 px). Hit Record.
-5. Click the **scheduling chip** (will be one of: *"My AC stopped cooling..."* or
-   *"Can someone come tomorrow morning?"* — the categorized random picker
-   sometimes shuffles; pick whichever AC-related one is showing).
-6. Wait for the 🔧 `check_availability` badge to appear (~3-5s on free model).
-7. Wait for the streaming reply tokens to finish (look for typing cursor `▊` to
+5. Click the **quote chip** (one of: *"How much for a tune-up before summer?"*,
+   *"Need a quote on replacing a 15-year-old condenser."*, etc.). Quote prompts
+   fire `get_quote_range` on turn 1 reliably; scheduling prompts make the model
+   ask for name/address first — fine for a real conversation, bad for an 8s shot.
+6. Wait for the 🔧 `get_quote_range` badge to appear (~3–12s on `gpt-oss-120b:free`).
+7. Wait for the streaming reply tokens to finish (look for typing cursor `◊` to
    disappear).
 8. Stop recording (`Cmd + Shift + 5` → Stop, or click menubar icon).
 
-If the LLM doesn't pick a tool on this prompt (rare with `get_quote_range` vs
-`check_availability`), reset (top-right "Reset" button) and click 🎲 New ideas
-to re-roll suggestions, then click a fresh scheduling chip.
+**If you want the booking flow in the shot instead** (more dramatic but multi-turn):
+click a scheduling chip, then immediately type a follow-up with everything the
+model needs: `"Name is Bob, 123 Main St 78701, tomorrow morning works."` This
+fires `check_availability` then `book_appointment` back-to-back. Adds ~6s to the
+shot — fine if you're willing to extend shot 4 to 12s.
+
+If the LLM doesn't pick a tool, hit the top-right **Reset** button and click
+🎲 **New ideas** to re-roll suggestions, then click a fresh quote chip.
 
 ### Phrasing variants for iPhone call (in case first take fumbles)
 
