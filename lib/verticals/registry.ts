@@ -22,9 +22,13 @@ import { ELECTRICIAN_SYSTEM_PROMPT } from './electrician/prompt';
 import { ELECTRICIAN_TOOLS, handleElectricianTool } from './electrician/tools';
 import { QUOTE_RANGES as ELECTRICIAN_QUOTE_RANGES } from './electrician/business-rules';
 
+import { DENTAL_SYSTEM_PROMPT } from './dental/prompt';
+import { DENTAL_TOOLS, handleDentalTool } from './dental/tools';
+import { QUOTE_RANGES as DENTAL_QUOTE_RANGES } from './dental/business-rules';
+
 import type { BuiltVertical } from './build-tools';
 
-export type VerticalId = 'hvac' | 'plumber' | 'electrician';
+export type VerticalId = 'hvac' | 'plumber' | 'electrician' | 'dental';
 
 /**
  * Example prompts grouped by the product capability they exercise.
@@ -157,6 +161,39 @@ export const VERTICALS: Record<VerticalId, VerticalConfig> = {
       ],
     },
     quoteIssueTypes: Object.keys(ELECTRICIAN_QUOTE_RANGES),
+  },
+  dental: {
+    id: 'dental',
+    label: 'Dental',
+    emoji: '\ud83e\udda6',
+    businessName: 'BrightSmile Dental',
+    agentName: 'Jordan',
+    greeting: 'Thanks for calling BrightSmile Dental, this is Jordan. How can I help today?',
+    systemPrompt: DENTAL_SYSTEM_PROMPT,
+    tools: DENTAL_TOOLS,
+    handler: handleDentalTool,
+    voiceAvailable: false,
+    examplePrompts: {
+      emergency: [
+        "My kid knocked his tooth out at soccer practice, what do I do?!",
+        'I have severe tooth pain and my face is swollen.',
+        "My gum is bleeding and won't stop after an hour.",
+        'I think I have an abscess, my jaw is throbbing.',
+      ],
+      quote: [
+        'How much for a routine cleaning without insurance?',
+        'Ballpark cost for a root canal on a back molar?',
+        'What does Invisalign typically run?',
+        'How much is a crown if my insurance covers part of it?',
+      ],
+      scheduling: [
+        "It's been a while \u2014 can I get a cleaning sometime this month?",
+        'My 6-year-old needs his first checkup, do you see kids?',
+        'I chipped a tooth on popcorn, can someone look at it tomorrow?',
+        'Want to schedule an Invisalign consultation.',
+      ],
+    },
+    quoteIssueTypes: Object.keys(DENTAL_QUOTE_RANGES),
   },
 };
 

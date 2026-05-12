@@ -80,7 +80,7 @@ const VERTICALS = [
   { label: '🔥 HVAC', href: '/demo/hvac', live: true, mode: 'Voice + text' },
   { label: '🚰 Plumbing', href: '/demo/plumber', live: true, mode: 'Text only' },
   { label: '⚡ Electrical', href: '/demo/electrician', live: true, mode: 'Text only' },
-  { label: 'Dental', href: '#', live: false, mode: '' },
+  { label: '🦷 Dental', href: '/demo/dental', live: true, mode: 'Text only' },
   { label: 'Legal Intake', href: '#', live: false, mode: '' },
 ];
 
