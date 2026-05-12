@@ -250,3 +250,359 @@ After 15 pitches, look at the data:
 > "Built it in 2 days end-to-end, deployed on Vercel for ~$0 infra. Production-ready, not a prototype."
 
 > "Live demo runs voice OR text against the same backend — clients without mic permission can still test."
+
+---
+
+## Ready-to-paste pitches by scenario (5 filled-in templates)
+
+> The variants A/B/C above are scaffolding. Below are five **fully-flesh­ed-out
+> pitches** for the most common JD shapes you'll see this month — placeholders
+> already filled with realistic content you can edit lightly per JD. Each pitch
+> has **4 opener variants** to A/B test, plus a **3-day follow-up message** for
+> when the first one is ghosted.
+>
+> Replace `[brackets]` with JD-specific details. Curly braces are gone.
+
+---
+
+### Pitch 1 — Small HVAC contractor (1-2 trucks, JD ≤ $300)
+
+**Scenario:** "Looking for someone to set up an AI to answer my phone after hours
+so I stop losing weekend calls. Budget around $200."
+
+**Primary pitch (Variant A, ~70 words):**
+
+```
+Hey [first name] —
+
+I built a working HVAC AI receptionist last week. It answers, asks the
+right questions, books the slot, and pages you for emergencies (gas
+leaks, flooding). Try it now — voice OR text:
+
+https://dispatch-agent-seven.vercel.app/demo/hvac
+
+Sample lines that work: "AC stopped cooling, what's available?" or
+"Water flooding from my unit!" — watch the tool calls fire live.
+
+Adapting to your business: ~3-4 hours (your service area, prices,
+techs). Can I send you a 5-min Loom showing exactly what changes?
+
+— [your name]
+```
+
+**Opener variants (replace line 1):**
+
+- **Industry hook:** *"You're losing $300+ per missed weekend call — here's the cheapest fix."*
+- **Demo-first:** *"Skip the pitch, here's a working HVAC AI taking real calls: [demo URL]."*
+- **Empathy:** *"After-hours calls killing your weekends? I built this for exactly that."*
+- **Math hook:** *"Math says answering one extra emergency call/week pays for this in 3 days."*
+
+**3-day follow-up if no reply:**
+
+```
+Quick follow-up — did the demo link work for you? Mobile Safari
+sometimes blocks Vapi's mic permission. If voice didn't fire,
+the text version of the demo runs the same backend tools.
+
+If timing is off this month, no worries. If you want, I can hold
+a 15-min slot Friday and walk through what an adapter for your
+business would look like — no commitment.
+
+— [your name]
+```
+
+---
+
+### Pitch 2 — Multi-location plumbing company (5-10 trucks, JD names Vapi/Bland)
+
+**Scenario:** "We use Vapi already but our current build hallucinates appointment
+times and confuses customers. Need someone who actually understands function
+calling. $1000-2000 budget."
+
+**Primary pitch (Variant B, ~160 words):**
+
+```
+Hi [first name],
+
+Your line about the AI "confusing customers with hallucinated
+appointment times" — that's a function-calling failure, not a Vapi
+problem. Most Vapi builds skip the strict tool schema and let the
+LLM invent slot IDs. The fix is making `check_availability` return
+a typed object the LLM has to repeat verbatim, not paraphrase.
+
+Live reference build doing it right:
+→ https://dispatch-agent-seven.vercel.app/demo/plumber
+
+Click "How fast can someone get out for a tree-root blockage?" —
+watch the tool fire, return a real slot from the roster, and the
+AI read it back without invention.
+
+For your scope:
+- Audit your current Vapi assistant + transcript review (1-2 hrs)
+- Refactor tools to strict-typed schemas with validated returns
+- Add observability so you catch hallucinations before customers do
+- Document the prompt + tool contract for your team
+
+Rate $75/hr or $1200 fixed for the above. Where should I send a
+3-min Loom auditing one of your recent transcripts?
+
+— [your name]
+```
+
+**Opener variants:**
+
+- **Diagnostic:** *"Hallucinated appointment times = tool-call schema is too loose. 3-min Loom audit?"*
+- **Authority:** *"I've debugged this exact failure on 3 Vapi builds. The fix is upstream of the LLM."*
+- **Curiosity gap:** *"Your current AI is probably failing in one specific way. Here's how to tell:"*
+- **Reference build:** *"Plumber demo at [URL] never hallucinates slots — same Vapi, different tool design."*
+
+**3-day follow-up:**
+
+```
+Following up — even if I'm not the right fit, the failure pattern
+I described is fixable in ~2 hours by whoever you hire. Two things
+to check on your current assistant:
+
+1. Is `check_availability` returning a structured object or a string?
+2. Does the system prompt say "read back the slot_id verbatim" or
+   is it free-form?
+
+Happy to be a no-strings second opinion if you want a 15-min call.
+
+— [your name]
+```
+
+---
+
+### Pitch 3 — Dental practice / single dentist ($300-800)
+
+**Scenario:** "Front desk overwhelmed. We need an AI that can book cleanings,
+handle the basic insurance questions, and route emergencies to me when I'm out.
+$500."
+
+**Primary pitch (Variant B, ~170 words):**
+
+```
+Hi Dr. [last name],
+
+Front-desk overwhelm in a single-doc dental office is almost always
+the same 3 calls: routine cleanings, insurance "do you take X",
+and the after-hours emergency. I built a dental receptionist that
+handles all three — try it:
+
+→ https://dispatch-agent-seven.vercel.app/demo/dental
+
+Click "My kid knocked his tooth out at soccer practice!" — watch
+it triage as emergency, page you immediately, AND give the parent
+the milk-storage first aid (which buys you 30 minutes to call back).
+
+It also knows what NOT to do, which matters in dental:
+- Won't ask for SSN or PHI on the cold call (HIPAA)
+- Won't quote exact treatment cost (you confirm post-exam)
+- Won't give clinical advice beyond OTC ibuprofen guidance
+- Defers insurance verification to in-person (the only sane policy)
+
+For your practice, I'd swap the mock dentists for your actual roster
++ procedure codes, calibrate the emergency keywords for your patient
+base, and connect to your PMS (Dentrix? OpenDental?) for real-time
+slot availability. ~4-6 hours total. $500 sounds right for the scope.
+
+Open to a 20-min call this week?
+
+— [your name]
+```
+
+**Opener variants:**
+
+- **Specific scenario:** *"Knocked-out tooth at 7pm Saturday — your AI receptionist should do exactly this:"*
+- **HIPAA hook:** *"Most dental AI demos break HIPAA on call 1. Here's one that doesn't."*
+- **PMS-aware:** *"Does it need to plug into Dentrix/OpenDental? I've thought about that integration."*
+- **Math:** *"Front desk overwhelm = 2-3 missed booking calls a day = ~$10k/year walking away."*
+
+**3-day follow-up:**
+
+```
+Following up — one thing I forgot to mention: dental emergency
+triage is the highest-stakes piece because the wrong answer can
+cost a tooth. The demo I sent uses the standard avulsed-tooth
+protocol (handle by crown, store in milk, get in within 30 min)
+which most generic AI receptionists get wrong.
+
+If you'd rather just see how I'd handle YOUR top 5 call types,
+send me the categories and I'll loom through them. ~10 min on
+your end to send the list.
+
+— [your name]
+```
+
+---
+
+### Pitch 4 — Electrical contractor ($500-1500, emergency-dispatch flavor)
+
+**Scenario:** "Need an AI to handle emergency dispatch + give ballpark quotes.
+Customer asks if a sparking outlet is dangerous, AI needs to say YES and route
+to on-call. $800-1200."
+
+**Primary pitch (Variant B, ~150 words):**
+
+```
+Hi [first name],
+
+Two things that separate a useful electrical AI from a dangerous one:
+the AI must NEVER give DIY repair advice on energized equipment, and
+it must triage sparking / burning-smell / panel-fire as emergencies
+in under 2 sentences.
+
+Demo doing both:
+→ https://dispatch-agent-seven.vercel.app/demo/electrician
+
+Try the chip "My outlet is sparking and I smell burning plastic!" —
+the AI pages the owner BEFORE asking for the name. Then it tells the
+caller to leave the breaker tripped and stay clear. No "have you tried
+resetting it?" nonsense.
+
+For ballpark quotes, it uses a typed `get_quote_range` tool with your
+real pricing matrix (panel upgrades, EV chargers, sub-panels, etc.) —
+caveat baked in: "approximate, electrician confirms onsite". No
+hallucinated $399 panel upgrades.
+
+For your business: swap the mock electricians for your real roster,
+calibrate emergency keywords for your insurance preferences, and
+plug into your dispatch tool. $800-1000 fixed for the prompt + tool
+adaptation; integration is +$500 depending on your dispatch software.
+
+Where should I send a Loom adapting this for [their company name]?
+
+— [your name]
+```
+
+**Opener variants:**
+
+- **Safety hook:** *"AI receptionists giving DIY electrical advice = insurance nightmare. Here's one that doesn't."*
+- **Spec-driven:** *"Sparking outlet → page owner before name = correct. Your current AI doing that?"*
+- **Quote precision:** *"Ballpark electrical quotes without hallucinating prices is a tool-design problem. Solved."*
+- **Compliance:** *"Liability-aware electrical AI: no DIY advice, always defer to licensed onsite."*
+
+**3-day follow-up:**
+
+```
+Following up — one risk to flag with whoever you hire (me or
+otherwise): make sure they understand the AI must NEVER suggest
+"try flipping the breaker" for a sparking outlet. That's
+training-data default behavior and costs houses every year.
+
+The demo I sent has those phrases explicitly blocked in the
+system prompt. Happy to share the prompt verbatim if you want
+to vet your own implementation.
+
+— [your name]
+```
+
+---
+
+### Pitch 5 — Generic "AI voice agent developer" RFP ($1500+, multi-stakeholder)
+
+**Scenario:** "Looking for a senior developer to build an AI voice receptionist
+for our service business. Must handle calls, book appointments, integrate with
+[CRM]. Fixed $2500."
+
+**Primary pitch (Variant C, ~240 words):**
+
+```
+[first name],
+
+Three things from your spec stood out:
+
+1. "Handle calls AND book appointments" — solved this with a
+   4-tool pattern: check_availability, book_appointment,
+   escalate_to_owner, get_quote_range. Strict-typed schemas so
+   the LLM can't hallucinate slot IDs (which is where 80% of
+   competitor builds fail).
+2. "Integrate with [their CRM]" — most CRMs ship a webhook
+   or REST API; the integration sits between book_appointment
+   and the actual calendar write. ~4-6 hours depending on
+   their auth model.
+3. "Service business, fixed $2500" — fair scope for one
+   vertical, voice + text fallback, one integration, deployed
+   to your infra with handoff docs.
+
+Reference build (live, real backend, 4 verticals):
+→ https://dispatch-agent-seven.vercel.app
+
+The HVAC vertical has voice mode (Vapi). All four verticals
+share the same factory pattern — that's how I'd ship yours in
+under 2 weeks.
+
+Stack: Vapi (voice) + OpenRouter (LLM router for cost control
+across gpt-4o-mini / GLM / Claude Haiku) + Next.js + Vercel.
+Total infra cost at 1000 calls/mo: ~$30. Source on GitHub if
+you want to architect-review before hire.
+
+Proposed timeline for [their company]:
+- Week 1: prompt + tool design doc (you sign off before build)
+- Week 2: build + integrate with [their CRM] via their webhook/API
+- Week 3: pilot 50 real calls, tune prompt, ship
+- Post-launch: 30-day support, 2 prompt revisions included
+
+$2500 fixed works for that scope. When works for a 30-min
+discovery call this week — Tue or Thu both open.
+
+— [your name]
+P.S. If you've already started a build, I do architecture
+reviews for $200 flat — useful sanity check before committing
+to one approach.
+```
+
+**Opener variants:**
+
+- **Spec-driven:** *"Read your spec — 3 specific decisions to make before write a single line of code. Quick call?"*
+- **Reference-first:** *"Working reference build at [URL] — let me know if it answers your spec faster than reading my pitch."*
+- **Process focus:** *"My process for these: spec sign-off in week 1, build in week 2, pilot in week 3. Open to your timeline?"*
+- **Risk-reducer:** *"Service-business AI receptionist + CRM integration: 3 places this typically fails. Avoidable with the right prompt + tool contract."*
+
+**3-day follow-up:**
+
+```
+Following up — wanted to flag one decision point that's worth
+making before hiring anyone, regardless of who you go with:
+
+LLM provider lock-in. If you build directly against OpenAI
+Realtime API, switching providers later is a full rebuild.
+If you build on Vapi or VoiceFlow with OpenRouter, you can
+A/B test models without changing code. For service-business
+volume, the latter saves ~40% on LLM cost in year 1.
+
+Happy to walk through the trade-offs in 15 min if useful —
+no commitment.
+
+— [your name]
+```
+
+---
+
+### Tracking sheet — first 10 pitches
+
+Copy this into a Google Sheet or Notion:
+
+| # | Date | JD URL | Industry | Variant | Pitch number used (1-5) | Customized lines | Reply? | Outcome |
+|---|---|---|---|---|---|---|---|---|
+| 1 |  |  |  |  |  |  |  |  |
+| 2 |  |  |  |  |  |  |  |  |
+| ... |  |  |  |  |  |  |  |  |
+
+After 10 pitches, expect:
+- **<1 reply** → your customization is too thin (you're sending templates)
+- **1-2 replies** → on target; keep volume
+- **3+ replies** → consider raising rates or being more selective
+
+### Where to find JDs faster
+
+Sorted by signal-to-noise:
+
+1. **Upwork search saved filters** — "AI voice agent" + "Vapi" + "Posted last 24h" + "Budget > $300"
+2. **Upwork RSS feeds** — subscribe to the search; get notified before the JD has 50 proposals
+3. **r/Upwork** — `vapi` posts in last week (sometimes contractors mention specific JDs to avoid)
+4. **Twitter/X** — search "hiring vapi developer" filter:replies — clients sometimes post first there
+5. **AI voice agent Discords** — Vapi has one; Retell has one; clients post hires there before Upwork
+
+Do NOT pitch on Fiverr — race-to-bottom pricing kills your anchor for Upwork later.

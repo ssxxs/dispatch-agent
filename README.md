@@ -5,15 +5,21 @@
 **24/7 AI voice receptionist for service businesses.**
 Books appointments. Quotes prices. Escalates emergencies. Never misses a call.
 
-[![Live Demo](https://img.shields.io/badge/live%20demo-dispatch--agent--seven.vercel.app-emerald?style=for-the-badge)](https://dispatch-agent-seven.vercel.app/demo/hvac)
+[![Live Demo](https://img.shields.io/badge/live%20demo-dispatch--agent--seven.vercel.app-emerald?style=for-the-badge)](https://dispatch-agent-seven.vercel.app)
 [![Built with Vapi](https://img.shields.io/badge/voice-Vapi.ai-7c3aed?style=for-the-badge)](https://vapi.ai)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![Deployed on Vercel](https://img.shields.io/badge/deployed-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com)
 
-[**🎙️ Try the live demo**](https://dispatch-agent-seven.vercel.app/demo/hvac) ·
+[**🎙️ Try a live demo**](https://dispatch-agent-seven.vercel.app) ·
 [Architecture](#architecture) ·
 [Run it locally](#run-it-locally) ·
 [How it works](#how-it-works)
+
+**Four industries live, one factory pattern:**
+[🔥 HVAC](https://dispatch-agent-seven.vercel.app/demo/hvac) (voice + text) ·
+[🚰 Plumbing](https://dispatch-agent-seven.vercel.app/demo/plumber) ·
+[⚡ Electrical](https://dispatch-agent-seven.vercel.app/demo/electrician) ·
+[� Dental](https://dispatch-agent-seven.vercel.app/demo/dental)
 
 </div>
 
@@ -21,14 +27,16 @@ Books appointments. Quotes prices. Escalates emergencies. Never misses a call.
 
 ## What it does
 
-A small business gets a phone call. Their AI receptionist — Riley, in our HVAC demo — picks up on the first ring, listens to the issue, decides the right action, and either:
+A small service business gets a phone call. Their AI receptionist — Riley (HVAC), Sam (plumbing), Alex (electrical), or Jordan (dental) — picks up on the first ring, listens to the issue, decides the right action, and either:
 
 - **Books an appointment** with the next available technician (with skills + urgency matching)
 - **Quotes a price range** for common repairs, with a human disclaimer
-- **Pages the owner immediately** if it's a real emergency (gas leak, flooding, no heat with vulnerable person)
-- **Hands off** politely if it's out of scope
+- **Pages the owner immediately** if it's a real emergency (gas leak, flooding, knocked-out tooth, sparking outlet)
+- **Hands off** politely if it's out of scope (DIY questions, off-topic, weather)
 
-Same backend powers **voice calls (via Vapi)** and **text chat (direct LLM)**. Visitors without a mic can still test it. Every assistant reply shows the tool calls it made — full transparency, not a black box.
+Same backend powers **voice calls (via Vapi)** and **text chat with SSE streaming**. Visitors without a mic can still test it — every reply streams in token-by-token, with tool calls surfaced as live badges so you can see exactly what the AI decided and why. No black-box magic.
+
+Four verticals share one factory: a new industry takes ~45 minutes of focused work (system prompt + roster + business rules + register). See [Multi-vertical factory](#multi-vertical-factory) below.
 
 > 📺 **30-second demo video:** see [`docs/DEMO_VIDEO_SCRIPT.md`](./docs/DEMO_VIDEO_SCRIPT.md) for the recording playbook.
 
@@ -79,36 +87,80 @@ Each missed call in HVAC averages a **$300 lost ticket**. At 20% miss rate, this
                                        │
                                        ▼
                                 ┌──────────────┐
-                                │ Mock roster  │   Phase 1: in-memory
-                                │ + business   │   Phase 2: Supabase
-                                │ rules        │
-                                └──────────────┘
+                                │ Vertical     │   buildVerticalTools(cfg)
+                                │ factory      │   = same 4 tools, different
+                                │              │   roster + prompt + rules
+                                └─────┬──────┘
+                                      │
+          ┌───────────────────┼───────────────────┐
+          ▼                  ▼                   ▼          ▼
+      ┌─────────┐      ┌───────────┐    ┌───────────┐ ┌──────────┐
+      │  HVAC  │      │ Plumber │    │Electric│ │ Dental │
+      │ roster │      │ roster  │    │ roster │ │ roster │
+      └─────────┘      └───────────┘    └───────────┘ └──────────┘
 ```
 
-**Same tools, two channels:**
+**Same tools, two channels, four verticals:**
 
 ```
-   Voice path:  caller → Vapi → OpenRouter → /api/vapi-webhook → tools
-   Text path:   browser → /api/chat (agentic loop) → tools
-                                  └─→ shared lib/verticals/hvac/tools.ts
+   Voice path:  caller → Vapi → OpenRouter → /api/vapi-webhook → vertical.handler
+   Text path:   browser → /api/chat (Edge runtime, SSE stream) → vertical.handler
+                                  └─→ shared buildVerticalTools() factory
+                                          └─→ lib/verticals/{hvac,plumber,electrician,dental}/
 ```
 
-The agentic loop in `/api/chat` runs up to 4 LLM ↔ tool iterations per turn. Tool calls are surfaced in the UI as expandable badges — you see what the AI decided and why.
+The agentic loop in `/api/chat` runs up to 4 LLM ↔ tool iterations per turn, **streamed** as Server-Sent Events. The client renders tool calls as live progress badges (running → result) and reply tokens stream in word-by-word. No "three dots" wait — first feedback in under 200ms.
 
 ---
 
 ## Tech stack
 
-| Layer | Choice | Why |
+| Layer | Choice | Version | Why |
+|---|---|---|---|
+| Web framework | **Next.js** (App Router, RSC, Turbopack) | `16.2.6` | API routes + UI in one repo, edge-friendly |
+| UI runtime | **React** / **React DOM** | `19.2.4` | Server Components + new `use()` / Actions APIs |
+| Language | **TypeScript** (strict mode) | `^5.9.3` | Catches tool-arg shape bugs at build time |
+| Styling | **Tailwind CSS** (+ `@tailwindcss/postcss`) | `^4.3.0` | No CSS files, theme via CSS tokens, zero-config v4 engine |
+| Linting | **ESLint** + **eslint-config-next** | `9.39.4` / `16.2.6` | Flat config (`eslint.config.mjs`) aligned with Next 16 |
+| Voice (STT + TTS + orchestration) | **Vapi.ai** Web SDK (`@vapi-ai/web`) | `^2.5.2` | Fastest to ship, $10 free credit, swappable to Twilio + OpenAI Realtime |
+| LLM provider | **OpenRouter** (HTTP, streaming SSE, no SDK) | — | One key, route between GPT-4o-mini / GLM 4.5 Air / Claude Haiku for cost control |
+| Chat API runtime | **Vercel Edge** (V8 isolate) | — | Native Web streams = no CDN buffering on SSE chunks |
+| Deployment | **Vercel** | — | Zero-config Next.js, free hobby tier |
+| Persistence (Phase 2) | **Supabase** | — | Postgres + RLS + auth in one |
+| Telephony (Phase 3) | **Twilio** | — | Real US phone numbers, BYO number support |
+
+### Runtime requirements
+
+- **Node.js** `>= 20.x` (matches `@types/node ^20`, required by Next.js 16)
+- **npm** `>= 10` (or any compatible package manager)
+
+### Full dependency manifest
+
+Pinned in [`package.json`](./package.json); resolved versions captured in `package-lock.json`.
+
+**Production dependencies**
+
+| Package | Declared | Resolved |
 |---|---|---|
-| Voice (STT + TTS + orchestration) | **Vapi.ai** | Fastest to ship, $10 free credit, swappable to Twilio + OpenAI Realtime |
-| LLM provider | **OpenRouter** | One key, route between GPT-4o-mini / Gemini Flash / Claude Haiku for cost control |
-| Web framework | **Next.js 16** (App Router, RSC, Turbopack) | API routes + UI in one repo, edge-friendly |
-| Styling | **Tailwind CSS 4** | No CSS files, theme via tokens |
-| Deployment | **Vercel** | Zero-config Next.js, free hobby tier |
-| Persistence (Phase 2) | **Supabase** | Postgres + RLS + auth in one |
-| Language | **TypeScript** strict mode | Catches tool-arg shape bugs at build time |
-| Telephony (Phase 3) | **Twilio** | Real US phone numbers, BYO number support |
+| `next` | `16.2.6` | `16.2.6` |
+| `react` | `19.2.4` | `19.2.4` |
+| `react-dom` | `19.2.4` | `19.2.4` |
+| `@vapi-ai/web` | `^2.4.0` | `2.5.2` |
+
+**Dev dependencies**
+
+| Package | Declared | Resolved |
+|---|---|---|
+| `typescript` | `^5` | `5.9.3` |
+| `eslint` | `^9` | `9.39.4` |
+| `eslint-config-next` | `16.2.6` | `16.2.6` |
+| `tailwindcss` | `^4` | `4.3.0` |
+| `@tailwindcss/postcss` | `^4` | `4.3.0` |
+| `@types/node` | `^20` | `20.19.40` |
+| `@types/react` | `^19` | `19.2.14` |
+| `@types/react-dom` | `^19` | `19.2.3` |
+
+> ⚠️ This project targets **Next.js 16**, which ships breaking changes vs. Next 14/15 (async `params`/`searchParams`, new caching defaults, Turbopack-by-default). Consult `node_modules/next/dist/docs/` before introducing patterns from older Next.js tutorials.
 
 ---
 
@@ -141,7 +193,13 @@ cp .env.example .env.local      # fill in your keys (see below)
 npm run dev
 ```
 
-Open http://localhost:3000/demo/hvac → switch to **💬 Text chat** tab → click an example bubble. (Voice mode requires you also configure a Vapi assistant — see [`docs/ACCOUNT_SETUP.md`](./docs/ACCOUNT_SETUP.md).)
+Open http://localhost:3000 to see the multi-vertical landing page, then try any of:
+- http://localhost:3000/demo/hvac — voice + text (needs Vapi env vars for voice)
+- http://localhost:3000/demo/plumber — text
+- http://localhost:3000/demo/electrician — text
+- http://localhost:3000/demo/dental — text
+
+Text mode just needs `OPENROUTER_API_KEY`. Voice mode also needs Vapi configuration — see [`docs/ACCOUNT_SETUP.md`](./docs/ACCOUNT_SETUP.md).
 
 ### Required env vars
 
@@ -152,7 +210,10 @@ NEXT_PUBLIC_VAPI_HVAC_ASSISTANT_ID=...
 
 # Required for text mode (server-side, keep secret)
 OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=openai/gpt-4o-mini   # or google/gemini-2.0-flash-exp:free for $0/call
+# Recommended (paid, fast, reliable for demos): openai/gpt-4o-mini   (~$0.001/call)
+# Free fallback (works, slightly slower):       z-ai/glm-4.5-air:free  ($0/call)
+# Auto-route (resilient, picks best free model): openrouter/free       ($0/call)
+OPENROUTER_MODEL=z-ai/glm-4.5-air:free
 
 # Optional — only for the local sync script
 VAPI_PRIVATE_KEY=...
@@ -207,16 +268,41 @@ for (let i = 0; i < MAX_ITERATIONS; i++) {
 
 Capped at 4 iterations — if the LLM gets stuck calling tools, we return an error instead of looping forever.
 
-### Adding a new vertical
+### Multi-vertical factory
+
+Every vertical is just **four files** wired through one factory:
+
+```
+lib/verticals/<industry>/
+  ├─ prompt.ts         # System prompt: persona, call flow, emergencies, scope
+  ├─ business-rules.ts # Quote ranges, emergency keywords, owner phone, hours
+  ├─ mock-roster.ts    # Technicians/dentists/electricians + availability
+  └─ tools.ts          # 5-line wrapper around buildVerticalTools(cfg)
+```
+
+The factory (`lib/verticals/build-tools.ts`) generates the same 4 OpenAI-spec tool
+definitions and a typed handler from those data sources — so the tool *schemas*
+are identical across HVAC, plumbing, electrical, and dental, only the *data*
+differs. Adding a new industry typically takes 30-45 minutes:
 
 ```bash
-mkdir -p lib/verticals/dental
-# Copy + adapt the 4 files from hvac/
-cp lib/verticals/hvac/{prompt.ts,mock-roster.ts,business-rules.ts,kb.md} lib/verticals/dental/
-# Edit them for your industry vocabulary, emergencies, pricing
-# Then build a `tools.ts` that imports from these
-# Wire into the demo page via a vertical switcher
+mkdir -p lib/verticals/realestate
+# Author the 4 files following lib/verticals/dental/ as a template
+# Register in lib/verticals/registry.ts (one entry)
+# Add app/demo/realestate/page.tsx (10 lines, uses VerticalDemo)
+# Done — voice + text + tool transparency, all working.
 ```
+
+Fix a bug in the handler? It fixes all four verticals at once. Add a new tool?
+All four get it. That's the leverage of the factory.
+
+### Categorized prompt suggestions (UI detail worth noting)
+
+Each vertical's `examplePrompts` is grouped into `{ emergency, quote, scheduling }`.
+The chat UI picks 1 random prompt from each category on every page load, so
+visitors **always** see the three core capabilities demonstrated. A 🎲 button
+reshuffles without resetting the chat. Pure-random sampling would risk showing
+three quote prompts and missing the emergency-triage demo entirely.
 
 ---
 
@@ -227,31 +313,39 @@ dispatch-agent/
 ├── app/
 │   ├── api/
 │   │   ├── vapi-webhook/route.ts    # Vapi tool-call receiver (voice path)
-│   │   └── chat/route.ts            # Text chat with agentic loop
-│   ├── demo/hvac/page.tsx           # Voice + text tabbed demo UI
-│   └── page.tsx                     # Marketing landing page
+│   │   └── chat/route.ts            # Text chat, Edge runtime, SSE streaming
+│   ├── demo/
+│   │   ├── hvac/page.tsx            # Voice + text tabbed demo
+│   │   ├── plumber/page.tsx         # Text-only demo
+│   │   ├── electrician/page.tsx     # Text-only demo
+│   │   └── dental/page.tsx          # Text-only demo (HIPAA-aware prompt)
+│   └── page.tsx                     # Multi-vertical landing page
 ├── components/
 │   ├── CallButton.tsx               # Vapi Web SDK integration
 │   ├── TranscriptStream.tsx         # Live voice transcript renderer
-│   └── TextChat.tsx                 # Text mode with tool-trace badges
+│   ├── TextChat.tsx                 # Text mode: SSE consumer + tool badges + streaming
+│   └── VerticalDemo.tsx             # Shared demo layout (voice/text tabs)
 ├── lib/
 │   ├── types.ts                     # Shared types (verticals, urgency, slots)
-│   └── verticals/hvac/
-│       ├── prompt.ts                # System prompt (call flow, emergencies, tone)
-│       ├── tools.ts                 # Tool definitions + handlers (single source)
-│       ├── mock-roster.ts           # In-memory technician roster (Phase 1)
-│       ├── business-rules.ts        # Emergency keywords, hours, owner phone, quotes
-│       └── kb.md                    # Knowledge base for prompt ingestion
+│   └── verticals/
+│       ├── build-tools.ts           # Factory: cfg → { tools, handler }
+│       ├── shared-roster.ts         # Slot-matching algorithm reused by all verticals
+│       ├── registry.ts              # Single import surface (config + meta)
+│       └── {hvac,plumber,electrician,dental}/
+│           ├── prompt.ts            # System prompt
+│           ├── business-rules.ts    # Quotes, emergencies, owner phone
+│           ├── mock-roster.ts       # In-memory roster
+│           └── tools.ts             # 5-line factory wrapper
 ├── voice/vapi-config/
 │   └── hvac-assistant.json          # Vapi assistant config (model + voice + STT)
 ├── scripts/
 │   ├── sync-vapi-assistant.mjs      # Push config + tools to Vapi (idempotent)
-│   └── test-webhook.mjs             # 21-check smoke test (local or prod)
+│   └── test-webhook.mjs             # End-to-end smoke test (local or prod)
 └── docs/
     ├── ACCOUNT_SETUP.md             # Registration runbook (Vapi, OpenRouter, ...)
     ├── COST_MODEL.md                # Full cost breakdown
-    ├── DEMO_VIDEO_SCRIPT.md         # 30s + 60s demo recording playbook
-    └── UPWORK_PITCH.md              # Pitch templates + JD scanning playbook
+    ├── DEMO_VIDEO_SCRIPT.md         # 30s + 60s demo recording playbook + shoot-day artifacts
+    └── UPWORK_PITCH.md              # Pitch templates + 5 filled-in ready-to-send pitches
 ```
 
 ---
@@ -263,7 +357,7 @@ At demo / Upwork-portfolio scale: **~$0/month**.
 | Component | Free tier | After free tier |
 |---|---|---|
 | Vapi voice | $10 credit on signup (~50 demo calls) | $0.05–$0.10 / minute |
-| OpenRouter | $0 with free models (`gemini-2.0-flash-exp:free`) | ~$0.001 / message with `gpt-4o-mini` |
+| OpenRouter | $0 with free models (`z-ai/glm-4.5-air:free`, `openrouter/free`) | ~$0.001 / message with `gpt-4o-mini` |
 | Vercel hosting | Hobby plan free | Pro $20/mo for custom domains |
 | Supabase (Phase 2) | Free tier covers up to 500MB | $25/mo Pro |
 
@@ -273,15 +367,16 @@ Production estimate at **100 calls/month**: ~$30–$60/mo all-in. See [`docs/COS
 
 ## Status
 
-- ✅ **Phase 1 (MVP)** — backend live, 21/21 smoke checks passing on production, voice + text both working
-- 🚧 **Phase 2** — Supabase persistence (call logs, appointments, customers), multi-vertical support, dashboard
-- 📅 **Phase 3** — Twilio number provisioning, post-call analytics, multi-tenant deployment template
+- ✅ **Phase 1 (MVP)** — backend live, smoke checks passing on production, voice + text both working
+- ✅ **Phase 1.5 (Multi-vertical)** — 4 industries (HVAC / plumbing / electrical / dental) sharing the factory, categorized random prompts, SSE streaming, Edge runtime
+- 🚧 **Phase 2** — Supabase persistence (call logs, appointments, customers), per-tenant dashboards, voice mode for all verticals
+- 📅 **Phase 3** — Twilio number provisioning, post-call analytics, multi-tenant deployment template, legal-intake vertical (different tool shape from receptionist booking)
 
 ---
 
 ## Built by
 
-Built in 2 days as a portfolio piece for service-business AI work. Available for similar builds via [Upwork](https://www.upwork.com).
+Built in a week as a portfolio piece for service-business AI work. Available for similar builds via [Upwork](https://www.upwork.com).
 
 If you're a service-business owner who wants this for *your* company — HVAC, dental, plumbing, legal intake, real estate — open an issue or reach out. Single-vertical adaptation typically takes 1–2 weeks end to end.
 

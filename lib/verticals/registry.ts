@@ -165,7 +165,7 @@ export const VERTICALS: Record<VerticalId, VerticalConfig> = {
   dental: {
     id: 'dental',
     label: 'Dental',
-    emoji: '\ud83e\udda6',
+    emoji: '\ud83e\uddb7',
     businessName: 'BrightSmile Dental',
     agentName: 'Jordan',
     greeting: 'Thanks for calling BrightSmile Dental, this is Jordan. How can I help today?',
