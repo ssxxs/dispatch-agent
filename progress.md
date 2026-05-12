@@ -33,11 +33,23 @@
 - One factory means: bug fixed in tool handler → fixes all verticals at once
 - Webhook smoke test still validates HVAC; plumber/electrician share identical handler logic so they're implicitly covered
 
+### Production end-to-end verification (via VPN, 11:15 AM)
+- [x] Webhook smoke: 19/19 checks pass on production after factory refactor
+- [x] Chat API HVAC: tool `get_quote_range` fires, args correct, natural reply with $99 diagnostic + follow-up
+- [x] Chat API Plumber: LLM follows prompt call flow, asks for name/address/urgency (correct — no premature tool call)
+- [x] Chat API Electrician: emergency input triggers `escalate_to_owner` immediately, returns safety guidance (no DIY advice), correct owner phone
+
+### Bug found & fixed during testing
+- ❌→✅ OpenAI gpt-4o-mini returned 403 "violation of provider TOS" on production. Switched to `openrouter/free` (auto-routes to currently-available free model). Same change applied to:
+  - Vercel env `OPENROUTER_MODEL` (Production)
+  - Vapi voice assistant model (via sync script)
+  - `voice/vapi-config/hvac-assistant.json` reference
+- ❌→✅ `google/gemini-2.0-flash-exp:free` was 404 (deprecated by OpenRouter). Fixed by same switch to `openrouter/free`.
+
 ### Pending verification (user)
-- [ ] Open https://dispatch-agent-seven.vercel.app in browser (Chrome — GFW tolerant) → click each of 3 vertical cards → confirm chat works in each
-- [ ] iPhone voice test (HVAC only — when headphones available)
-- [ ] Decide if plumber/electrician should also get Vapi voice assistants (1 new assistant per vertical, ~10 min each in dashboard)
-- [ ] `git add . && git commit -m '...' && git push` to update GitHub portfolio
+- [x] ~~Open chat in browser~~ — covered by curl tests above
+- [ ] iPhone voice test (HVAC, when headphones available) — should now work since Vapi assistant updated
+- [ ] Optional: add Vapi voice assistants for plumber + electrician (10 min each in dashboard)
 
 ### Next milestones
 - [ ] Record 30s demo video per `docs/DEMO_VIDEO_SCRIPT.md`
