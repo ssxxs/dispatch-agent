@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import type { ExamplePromptCategories } from '@/lib/verticals/registry';
 
 /**
  * Text-chat fallback for the voice receptionist demo. Works for any
@@ -26,7 +27,21 @@ export interface TextChatProps {
   verticalId: string;
   agentName: string;
   greeting: string;
-  examplePrompts: string[];
+  /** Categorized prompt pool. UI picks 1 from each category per page load. */
+  examplePrompts: ExamplePromptCategories;
+}
+
+/** Pick one random element from an array. */
+function pickOne<T>(arr: T[]): T | undefined {
+  if (arr.length === 0) return undefined;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/** Pick 1 random prompt from each of [emergency, quote, scheduling]. */
+function pickBalanced(pool: ExamplePromptCategories): string[] {
+  return [pickOne(pool.emergency), pickOne(pool.quote), pickOne(pool.scheduling)].filter(
+    (p): p is string => typeof p === 'string'
+  );
 }
 
 export default function TextChat({
@@ -43,6 +58,19 @@ export default function TextChat({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Suggestions: 1 random prompt from each of [emergency, quote, scheduling].
+  // Initial state uses first item from each category to avoid SSR/CSR
+  // hydration mismatch; useEffect re-rolls truly random ones on mount.
+  const [suggestions, setSuggestions] = useState<string[]>(() => [
+    examplePrompts.emergency[0] ?? '',
+    examplePrompts.quote[0] ?? '',
+    examplePrompts.scheduling[0] ?? '',
+  ].filter(Boolean));
+  useEffect(() => {
+    setSuggestions(pickBalanced(examplePrompts));
+  }, [examplePrompts]);
+  const refreshSuggestions = () => setSuggestions(pickBalanced(examplePrompts));
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -193,6 +221,7 @@ export default function TextChat({
   function reset() {
     setMessages([{ role: 'assistant', content: initialGreeting }]);
     setError(null);
+    refreshSuggestions();
   }
 
   return (
@@ -226,9 +255,20 @@ export default function TextChat({
 
       {messages.length <= 1 && (
         <div className="border-t border-slate-200 px-4 py-3 dark:border-slate-800">
-          <div className="mb-2 text-xs text-slate-500">Try one of these:</div>
+          <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+            <span>Try one of these:</span>
+            <button
+              type="button"
+              onClick={refreshSuggestions}
+              disabled={loading}
+              className="rounded px-2 py-0.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              title="Show different suggestions"
+            >
+              🎲 New ideas
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
-            {examplePrompts.map((p) => (
+            {suggestions.map((p) => (
               <button
                 key={p}
                 type="button"

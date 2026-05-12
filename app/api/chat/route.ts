@@ -21,8 +21,11 @@ import { getVertical, type VerticalId } from '@/lib/verticals/registry';
  *   { type: 'error', message: string }                           // fatal error mid-stream
  */
 
-export const runtime = 'nodejs';
-export const maxDuration = 30;
+// Edge runtime: V8 isolate + native Web streams = no Vercel CDN
+// buffering between chunks. Node runtime collects chunks in 8KB-ish
+// batches before flushing, which makes SSE look "smooth then suddenly
+// dumps a big block". Edge fixes this; we use only Web APIs anyway.
+export const runtime = 'edge';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MAX_ITERATIONS = 4;

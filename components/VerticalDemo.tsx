@@ -147,16 +147,29 @@ export default function VerticalDemo({
 
         <details className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 text-sm text-zinc-600 dark:text-zinc-400">
           <summary className="cursor-pointer font-medium text-zinc-900 dark:text-zinc-100">
-            Try saying / typing...
+            Full prompt library by category
           </summary>
-          <ul className="mt-3 space-y-1 list-disc list-inside">
-            {vertical.examplePrompts.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
+          <div className="mt-4 grid sm:grid-cols-3 gap-4">
+            <PromptCategory title="🚨 Emergency" items={vertical.examplePrompts.emergency} />
+            <PromptCategory title="💰 Quote" items={vertical.examplePrompts.quote} />
+            <PromptCategory title="📅 Scheduling" items={vertical.examplePrompts.scheduling} />
+          </div>
         </details>
       </div>
     </main>
+  );
+}
+
+function PromptCategory({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <div className="mb-2 font-semibold text-zinc-700 dark:text-zinc-300">{title}</div>
+      <ul className="space-y-1 list-disc list-inside text-xs">
+        {items.map((p) => (
+          <li key={p}>{p}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
