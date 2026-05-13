@@ -125,11 +125,13 @@ Single Vapi assistant with system prompt + tools. **No multi-agent for MVP** —
    - Watched the demo OR clicked the live URL, AND
    - Asks a follow-up question OR proposes a call.
    - Form letters / auto-rejects / `"interested, send portfolio"` do NOT count.
-3. Reply was within 14 days of pitch (signal decays fast).
+3. That reply arrived **within 14 days** of the pitch it answers (signal decays fast; replies after day 14 are usually stale JDs — treat as **not** unlocking Phase 2.1 unless you consciously re-open with a fresh pitch thread).
 
-**Allowed without the gate**: bug fixes, doc updates, refactors that don't add features, prompt-tuning for existing verticals, recording the demo video.
+**What "14 days" means (not idle time):** it is an **observation cut-off**, not permission to do nothing. Until the gate passes you **do not** start Phase 2.1+ features; you **may** keep sending outreach (e.g. 15–20 pitches), fix bugs, tune prompts/docs, record longer demo cuts, or publish posts — anything that does **not** add 🚫-gated product surface.
 
-**If 5 pitches → 0 substantive replies**: do NOT build more. Iterate on pitch positioning + vertical selection instead. The bottleneck is external signal, not code.
+**Allowed without the gate**: bug fixes, doc updates, refactors that don't add features, prompt-tuning for existing verticals, recording the demo video, **additional Upwork pitches beyond the first 5**, lightweight marketing (blog/LinkedIn) that does not require new product features.
+
+**If you still have 0 substantive replies by day 14** (counting from when those pitches went out): do NOT build Phase 2.1+. **Pivot** pitch copy, JD selection, or vertical emphasis — the bottleneck is external signal, not code. Sending more pitches in the same 14-day window is allowed; building admin/`call_logs`/new verticals is not. (The number **14** is a pragmatic cut-off, not physics; if you want 7 or 21 days instead, change it in one commit and treat that as team policy.)
 
 ## 9. Cost ceiling
 

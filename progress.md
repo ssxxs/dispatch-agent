@@ -60,7 +60,7 @@
 - [ ] **Pre-flight fix**: switch OPENROUTER_MODEL (block on user input re budget)
 - [ ] **Record 30s demo video** per `docs/DEMO_VIDEO_SCRIPT.md` shoot-day artifacts
 - [ ] **Send 5 Upwork pitches** per `docs/UPWORK_PITCH.md` (5 ready-to-paste templates already filled in)
-- [ ] **Wait 14 days for ≥1 substantive reply** (defined in `SPEC.md` §8 hard-gate)
+- [ ] **14-day cut-off**: if still **0 substantive replies** (per `SPEC.md` §8) by day 14 after pitches went out → no Phase 2.1; pivot outreach only. Until then, allowed work includes more pitches, video, docs, bugs (not idle waiting).
 - [ ] If reply received → unlock Phase 2.1 (admin dashboard, call_logs, voice for non-HVAC)
 - [ ] If 0 substantive replies → adjust pitch positioning / vertical selection. Do NOT build more.
 
