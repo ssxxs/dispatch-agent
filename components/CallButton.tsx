@@ -2,12 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Vapi from '@vapi-ai/web';
-import type { TranscriptEntry } from '@/lib/types';
+
+/** Single transcript chunk from Vapi (partial or final). Parent decides how to aggregate. */
+export interface TranscriptChunk {
+  role: 'user' | 'assistant';
+  text: string;
+  isFinal: boolean;
+}
 
 interface CallButtonProps {
   publicKey: string;
   assistantId: string;
-  onTranscript?: (entry: TranscriptEntry) => void;
+  onTranscript?: (chunk: TranscriptChunk) => void;
   onCallStart?: () => void;
   onCallEnd?: () => void;
   onError?: (err: Error) => void;
@@ -27,6 +33,25 @@ export function CallButton({
   const [state, setState] = useState<CallState>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Hold the latest callback refs so the effect that owns the Vapi instance
+  // can stay mounted for the lifetime of the component, instead of tearing
+  // down the live call every time the parent passes a new inline closure.
+  // Without this, parents like VerticalDemo that pass `onTranscript={(e) => ...}`
+  // re-create the function on every render; updating local transcript state
+  // re-renders the parent which would then trigger this effect's cleanup
+  // mid-call, ejecting the user from the Daily.co room with a confusing
+  // "Meeting has ended" error.
+  const onTranscriptRef = useRef(onTranscript);
+  const onCallStartRef = useRef(onCallStart);
+  const onCallEndRef = useRef(onCallEnd);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+    onCallStartRef.current = onCallStart;
+    onCallEndRef.current = onCallEnd;
+    onErrorRef.current = onError;
+  });
+
   useEffect(() => {
     if (!publicKey) return;
     const vapi = new Vapi(publicKey);
@@ -34,19 +59,18 @@ export function CallButton({
 
     vapi.on('call-start', () => {
       setState('active');
-      onCallStart?.();
+      onCallStartRef.current?.();
     });
     vapi.on('call-end', () => {
       setState('ended');
-      onCallEnd?.();
+      onCallEndRef.current?.();
     });
     vapi.on('message', (msg: any) => {
-      // Vapi sends transcripts as { type: 'transcript', role: 'user'|'assistant', transcript: string, transcriptType: 'partial'|'final' }
-      if (msg?.type === 'transcript' && msg?.transcriptType === 'final') {
-        onTranscript?.({
+      if (msg?.type === 'transcript' && (msg?.transcriptType === 'final' || msg?.transcriptType === 'partial')) {
+        onTranscriptRef.current?.({
           role: msg.role as 'user' | 'assistant',
           text: msg.transcript,
-          ts: new Date().toISOString(),
+          isFinal: msg.transcriptType === 'final',
         });
       }
     });
@@ -54,8 +78,64 @@ export function CallButton({
       const message = err?.message ?? err?.errorMsg ?? 'Vapi error';
       setErrorMsg(message);
       setState('error');
-      onError?.(new Error(message));
+      onErrorRef.current?.(new Error(message));
     });
+
+    // Demo recording backdoor: when the URL has ?demo_inject=1, expose an
+    // injection function that streams a user message word-by-word as partial
+    // transcripts (so the on-screen bubble types in naturally), then finalizes
+    // and sends the full text to Vapi to trigger an AI response.
+    //
+    // Optional `durationMs` makes the typing animation match a paired TTS
+    // audio clip — without it words stream too fast for the audio playback.
+    if (
+      typeof window !== 'undefined' &&
+      window.location?.search?.includes('demo_inject=1')
+    ) {
+      const w = window as Window & {
+        __vapiInject?: (content: string, durationMs?: number) => Promise<void>;
+        __vapi?: Vapi;
+      };
+      w.__vapi = vapi;
+      w.__vapiInject = async (content: string, durationMs?: number) => {
+        // eslint-disable-next-line no-console
+        console.log('[__vapiInject] sending:', content.slice(0, 60), 'duration:', durationMs);
+
+        const words = content.split(/\s+/);
+        // Default ~80ms/word if no duration given. Otherwise spread evenly
+        // across `durationMs` so typing finishes when the TTS audio finishes.
+        const perWord = durationMs ? Math.max(40, durationMs / words.length) : 80;
+
+        for (let i = 1; i <= words.length; i++) {
+          const partial = words.slice(0, i).join(' ');
+          onTranscriptRef.current?.({
+            role: 'user',
+            text: partial,
+            isFinal: false,
+          });
+          await new Promise((r) => setTimeout(r, perWord));
+        }
+
+        onTranscriptRef.current?.({
+          role: 'user',
+          text: content,
+          isFinal: true,
+        });
+
+        try {
+          vapi.send({
+            type: 'add-message',
+            message: { role: 'user', content },
+            triggerResponseEnabled: true,
+          });
+          // eslint-disable-next-line no-console
+          console.log('[__vapiInject] vapi.send returned');
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[__vapiInject] vapi.send threw:', err);
+        }
+      };
+    }
 
     return () => {
       try {
@@ -64,7 +144,9 @@ export function CallButton({
         /* ignore */
       }
     };
-  }, [publicKey, onCallStart, onCallEnd, onTranscript, onError]);
+    // Intentionally only depends on publicKey: callbacks come from refs above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicKey]);
 
   async function handleStart() {
     if (!vapiRef.current || !assistantId) {

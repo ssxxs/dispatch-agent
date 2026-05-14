@@ -42,6 +42,15 @@ export interface QuoteRange {
 
 export interface TranscriptEntry {
   role: 'user' | 'assistant';
-  text: string;
+  /** Words that have been finalized (will not change). */
+  finalText: string;
+  /** Current in-progress segment from STT (partial). Replaced on each partial event. */
+  partialText: string;
+  /**
+   * When true, this bubble will never receive new chunks. A bubble is sealed
+   * when the OTHER speaker emits a final transcript (signaling that this turn
+   * is over). User finals also self-seal since user messages are atomic.
+   */
+  sealed: boolean;
   ts?: string;
 }

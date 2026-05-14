@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CallButton } from '@/components/CallButton';
+import { CallButton, type TranscriptChunk } from '@/components/CallButton';
 import { TranscriptStream } from '@/components/TranscriptStream';
 import TextChat from '@/components/TextChat';
 import type { TranscriptEntry } from '@/lib/types';
@@ -28,6 +28,74 @@ export default function VerticalDemo({
   // Default to text mode when this vertical has no voice support
   const [mode, setMode] = useState<Mode>(vertical.voiceAvailable ? 'voice' : 'text');
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
+
+  // Aggregate Vapi transcript chunks into bubbles. The challenge: while a
+  // user is speaking, the AI may emit late partial/final chunks that
+  // interleave with user partials. Naively starting a new bubble on every
+  // role flip produces fragmented duplicates ("5 minutes" / "to" appearing
+  // as separate AI bubbles).
+  //
+  // Algorithm:
+  // - Each chunk routes to the most recent UN-SEALED bubble of its role.
+  //   If none exists, a new bubble is created.
+  // - Sealing is one-directional: only USER finals seal the open AI bubble.
+  //   That signals "the customer just said something new, the assistant's
+  //   prior turn is over." AI finals do NOT seal user bubbles, because the
+  //   user may still be mid-utterance when the AI finalizes a segment.
+  // - User finals also self-seal — user messages are atomic.
+  // - AI bubbles never self-seal: Vapi splits one AI turn into many
+  //   speech segments (each a partial→final cycle), all of which should
+  //   accumulate into the same bubble until the user speaks.
+  const handleTranscript = (chunk: TranscriptChunk) => {
+    setTranscript((prev) => {
+      const next = prev.slice();
+
+      // Step 1: find or create the active (un-sealed) bubble for this role
+      let activeIdx = -1;
+      for (let i = next.length - 1; i >= 0; i--) {
+        if (next[i].role === chunk.role && !next[i].sealed) {
+          activeIdx = i;
+          break;
+        }
+      }
+
+      if (activeIdx === -1) {
+        next.push({
+          role: chunk.role,
+          finalText: chunk.isFinal ? chunk.text : '',
+          partialText: chunk.isFinal ? '' : chunk.text,
+          sealed: chunk.isFinal && chunk.role === 'user',
+          ts: new Date().toISOString(),
+        });
+      } else {
+        const cur = next[activeIdx];
+        if (chunk.isFinal) {
+          next[activeIdx] = {
+            ...cur,
+            finalText: cur.finalText
+              ? cur.finalText.trimEnd() + ' ' + chunk.text.trimStart()
+              : chunk.text,
+            partialText: '',
+            sealed: chunk.role === 'user' ? true : cur.sealed,
+          };
+        } else {
+          next[activeIdx] = { ...cur, partialText: chunk.text };
+        }
+      }
+
+      // Step 2: only USER finals seal open AI bubbles. AI finals do NOT
+      // touch user bubbles — the user could still be mid-sentence.
+      if (chunk.isFinal && chunk.role === 'user') {
+        for (let i = 0; i < next.length; i++) {
+          if (next[i].role === 'assistant' && !next[i].sealed) {
+            next[i] = { ...next[i], sealed: true };
+          }
+        }
+      }
+
+      return next;
+    });
+  };
 
   const voiceConfigMissing = vertical.voiceAvailable && (!publicKey || !assistantId);
 
@@ -117,7 +185,7 @@ export default function VerticalDemo({
               <CallButton
                 publicKey={publicKey}
                 assistantId={assistantId}
-                onTranscript={(entry) => setTranscript((prev) => [...prev, entry])}
+                onTranscript={handleTranscript}
               />
               <p className="mt-4 text-xs text-zinc-500 text-center max-w-md">
                 Voice requires a working mic + browser permission. On iPhone, use Safari (not

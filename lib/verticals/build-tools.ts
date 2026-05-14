@@ -122,7 +122,7 @@ export function buildVerticalTools(cfg: VerticalToolConfig): BuiltVertical {
       function: {
         name: 'escalate_to_owner',
         description:
-          "EMERGENCY ONLY — gas smell, fire, sparking, flooding, no heat with vulnerable person, sewage backup, etc. Transfers caller to the owner's mobile.",
+          "EMERGENCY ONLY — gas smell, fire, sparking, flooding, no heat with vulnerable person, sewage backup, etc. Transfers caller to the owner's mobile. You MUST collect caller_name and caller_phone BEFORE calling this tool — never invent a name.",
         parameters: {
           type: 'object',
           properties: {
@@ -131,9 +131,13 @@ export function buildVerticalTools(cfg: VerticalToolConfig): BuiltVertical {
               description: "Precise emergency reason so the owner knows what they're walking into.",
             },
             caller_phone: { type: 'string' },
-            caller_name: { type: 'string' },
+            caller_name: {
+              type: 'string',
+              description:
+                "The caller's name as they provided it. Required. Do NOT invent or guess a name — ask the caller first if you don't have it.",
+            },
           },
-          required: ['reason', 'caller_phone'],
+          required: ['reason', 'caller_phone', 'caller_name'],
         },
       },
     },
@@ -254,7 +258,16 @@ export function buildVerticalTools(cfg: VerticalToolConfig): BuiltVertical {
         case 'escalate_to_owner': {
           const reason = params.reason ?? 'unspecified emergency';
           const callerPhone = params.caller_phone ?? 'unknown';
-          const callerName = params.caller_name ?? 'caller';
+          const callerName = (params.caller_name as string | undefined)?.trim();
+          if (!callerName) {
+            // Hard rejection: AI must collect the real name before escalating.
+            // Prevents the assistant from inventing a placeholder ("Alex") on
+            // the first emergency turn before the customer has identified.
+            return {
+              error:
+                "Missing caller_name. Ask the caller for their name before escalating — do not guess or invent one.",
+            };
+          }
           return {
             escalated: true,
             owner_phone: cfg.ownerPhone,

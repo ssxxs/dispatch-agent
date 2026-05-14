@@ -223,7 +223,7 @@ function buildTools(serverUrl, quoteIssueTypes) {
       type: 'function',
       function: {
         name: 'escalate_to_owner',
-        description: `EMERGENCY ONLY \u2014 ${emergencyExamples}, etc. Transfers caller to owner's mobile.`,
+        description: `EMERGENCY ONLY \u2014 ${emergencyExamples}, etc. Transfers caller to owner's mobile. You MUST collect caller_name and caller_phone BEFORE calling this tool \u2014 never invent a name.`,
         parameters: {
           type: 'object',
           properties: {
@@ -233,9 +233,13 @@ function buildTools(serverUrl, quoteIssueTypes) {
                 "Precise emergency reason so the owner knows what they're walking into.",
             },
             caller_phone: { type: 'string' },
-            caller_name: { type: 'string' },
+            caller_name: {
+              type: 'string',
+              description:
+                "The caller's name as they provided it. Required. Do NOT invent or guess a name \u2014 ask the caller first if you don't have it.",
+            },
           },
-          required: ['reason', 'caller_phone'],
+          required: ['reason', 'caller_phone', 'caller_name'],
         },
       },
       server: { url: serverUrl },
@@ -283,6 +287,10 @@ async function main() {
     firstMessage: cfg.firstMessage,
     model: {
       provider: 'openrouter',
+      // Reverted to openrouter/free meta-alias (May 2026). Pinning to a specific
+      // model id like `openai/gpt-oss-120b:free` made Vapi calls hang on
+      // "Connecting…" indefinitely — Vapi's OpenRouter integration expects the
+      // meta-alias for the free tier. See docs/DEMO_VIDEO_SCRIPT.md §fallback chain.
       model: 'openrouter/free',
       temperature: 0.5,
       messages: [{ role: 'system', content: systemPrompt }],
@@ -298,8 +306,10 @@ async function main() {
       language: 'en',
     },
     endCallMessage: 'Have a great day!',
-    silenceTimeoutSeconds: 30,
-    maxDurationSeconds: 360,
+    // Production default 30s. Override via env when recording demos so injected
+    // messages have time to flow without Vapi ejecting on silence.
+    silenceTimeoutSeconds: Number(process.env.VAPI_SILENCE_TIMEOUT_SECONDS ?? 30),
+    maxDurationSeconds: Number(process.env.VAPI_MAX_DURATION_SECONDS ?? 360),
   };
 
   const isCreate = !ASSISTANT_ID;
