@@ -44,3 +44,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# Playwright demo recordings (large binaries)
+/recordings
+
+# Playwright MCP: local snapshots / console logs (per machine, can contain page content)
+.playwright-mcp/
