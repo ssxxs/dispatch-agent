@@ -257,15 +257,20 @@ export function buildVerticalTools(cfg: VerticalToolConfig): BuiltVertical {
 
         case 'escalate_to_owner': {
           const reason = params.reason ?? 'unspecified emergency';
-          const callerPhone = params.caller_phone ?? 'unknown';
+          const callerPhone = (params.caller_phone as string | undefined)?.trim();
           const callerName = (params.caller_name as string | undefined)?.trim();
-          if (!callerName) {
-            // Hard rejection: AI must collect the real name before escalating.
-            // Prevents the assistant from inventing a placeholder ("Alex") on
-            // the first emergency turn before the customer has identified.
+          
+          // Hard rejection: AI must collect REAL name and phone before escalating.
+          if (!callerName || callerName.length < 2 || /^(caller|customer|user|unknown)$/i.test(callerName)) {
             return {
               error:
-                "Missing caller_name. Ask the caller for their name before escalating — do not guess or invent one.",
+                "ESCALATION FAILED — caller_name is missing or invalid. You have NOT escalated yet. Ask the caller: 'What is your name?' Then try again after they answer.",
+            };
+          }
+          if (!callerPhone || callerPhone.length < 7 || /^(unknown|none|your number)$/i.test(callerPhone)) {
+            return {
+              error:
+                "ESCALATION FAILED — caller_phone is missing or invalid. You have NOT escalated yet. Ask the caller: 'What is the best number to reach you?' Then try again after they answer.",
             };
           }
           return {

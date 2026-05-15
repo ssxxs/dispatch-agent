@@ -286,12 +286,10 @@ async function main() {
     name: `${cfg.businessName} Receptionist`,
     firstMessage: cfg.firstMessage,
     model: {
-      provider: 'openrouter',
-      // Reverted to openrouter/free meta-alias (May 2026). Pinning to a specific
-      // model id like `openai/gpt-oss-120b:free` made Vapi calls hang on
-      // "Connecting…" indefinitely — Vapi's OpenRouter integration expects the
-      // meta-alias for the free tier. See docs/DEMO_VIDEO_SCRIPT.md §fallback chain.
-      model: 'openrouter/free',
+      provider: 'groq',
+      // Groq LPU: ultra-low latency, native function calling, free tier.
+      // Vapi calls Groq from its own US servers — no geo-block issue.
+      model: 'llama-3.3-70b-versatile',
       temperature: 0.5,
       messages: [{ role: 'system', content: systemPrompt }],
       tools: buildTools(serverUrl, quoteIssueTypes),
