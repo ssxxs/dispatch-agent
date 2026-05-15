@@ -62,6 +62,7 @@ ROI: 270x
 ```
 
 **Decision log**:
+
 - **No LangGraph**: Vapi handles agent orchestration. Adding LangGraph = +1 dep with no Phase 1 value.
 - **No Twilio in MVP**: Vapi Web SDK lets browser act as the "phone". Demo works without PSTN.
 - **No paid LLM during dev**: OpenRouter free tier covers all local testing.
@@ -81,12 +82,14 @@ ROI: 270x
 Single Vapi assistant with system prompt + tools. **No multi-agent for MVP** — Vapi's single assistant with tools is enough for the call flow.
 
 **Tools** (`/api/vapi-webhook` route):
+
 - `check_availability(date, urgency)` → returns 3 nearest slots from mock roster
 - `book_appointment(caller_name, phone, address, slot_id, issue)` → returns confirmation #
 - `escalate_to_owner(reason, caller_phone)` → returns "owner will call back in 5 min"
 - `get_quote_range(issue_type)` → returns $low-$high from rule table
 
 **System prompt** drives:
+
 - Greeting (1 sentence, by name if returning)
 - Triage: ask for name, address, issue, urgency
 - If emergency keywords ("no heat", "water leaking", "elderly") → `escalate_to_owner`
@@ -96,35 +99,40 @@ Single Vapi assistant with system prompt + tools. **No multi-agent for MVP** —
 
 ## 7. Five verticals (Phase 4 expansion targets)
 
-| Vertical | Hook | Differentiation |
-|---|---|---|
-| HVAC | Emergency dispatch + quote | After-hours owner route |
-| Dental | Booking + reminders | "Toothache can't sleep" = urgent |
-| Beauty/Spa | Multi-service + packages | Multilingual (ES, ZH, EN) |
-| Legal intake | Qualify + book consult | Jurisdiction-aware |
-| Moving | Quote estimate + survey | Inventory walkthrough |
+
+| Vertical     | Hook                       | Differentiation                  |
+| ------------ | -------------------------- | -------------------------------- |
+| HVAC         | Emergency dispatch + quote | After-hours owner route          |
+| Dental       | Booking + reminders        | "Toothache can't sleep" = urgent |
+| Beauty/Spa   | Multi-service + packages   | Multilingual (ES, ZH, EN)        |
+| Legal intake | Qualify + book consult     | Jurisdiction-aware               |
+| Moving       | Quote estimate + survey    | Inventory walkthrough            |
+
 
 ## 8. Phase plan (35-50h total, time-boxed)
 
-| Phase | Hours | Scope | Status | Exit criteria |
-|---|---|---|---|---|
-| **1 (MVP)** | **10h** | HVAC vertical, Web SDK call, basic landing | ✅ done | Full booking flow in browser; deployed to Vercel |
-| **1.5 (off-plan)** | ~6h actual | Multi-vertical factory + 3 extra verticals (plumber, electrician, dental) | ✅ done | 4 verticals share one factory; ~45 min to add a 5th |
-| **2.0 (off-plan, partial)** | ~1h actual | Supabase `appointments` table + persistence in `book_appointment` / `check_availability` | ✅ done | DB writes verified end-to-end in prod; in-memory fallback when env unset |
-| 2.1 | ~9h remaining | Admin dashboard `/admin/<vertical>`, `call_logs` table + writer, voice for plumber/electrician/dental | 🚫 gated | Owner can see live bookings + transcripts; voice for all 4 |
-| 3 | 8h | n8n workflow: Google Calendar + Sheets + Slack escalation | 🚫 gated | Real bookings sync to external systems |
-| 4 | 8h | Add Beauty + Legal + Moving verticals | 🚫 gated | 7 verticals selectable, isolated prompts/KBs |
-| 5 | 4h | Landing polish + Loom 90s + Upwork portfolio entry | partial | Demo video recorded, posted, source on GitHub |
-| 6 (opt) | 6h | Multilingual (ES/ZH) | 🚫 gated | International reach |
+
+| Phase                       | Hours         | Scope                                                                                                 | Status   | Exit criteria                                                            |
+| --------------------------- | ------------- | ----------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------ |
+| **1 (MVP)**                 | **10h**       | HVAC vertical, Web SDK call, basic landing                                                            | ✅ done   | Full booking flow in browser; deployed to Vercel                         |
+| **1.5 (off-plan)**          | ~6h actual    | Multi-vertical factory + 3 extra verticals (plumber, electrician, dental)                             | ✅ done   | 4 verticals share one factory; ~45 min to add a 5th                      |
+| **2.0 (off-plan, partial)** | ~1h actual    | Supabase `appointments` table + persistence in `book_appointment` / `check_availability`              | ✅ done   | DB writes verified end-to-end in prod; in-memory fallback when env unset |
+| 2.1                         | ~9h remaining | Admin dashboard `/admin/<vertical>`, `call_logs` table + writer, voice for plumber/electrician/dental | 🚫 gated | Owner can see live bookings + transcripts; voice for all 4               |
+| 3                           | 8h            | n8n workflow: Google Calendar + Sheets + Slack escalation                                             | 🚫 gated | Real bookings sync to external systems                                   |
+| 4                           | 8h            | Add Beauty + Legal + Moving verticals                                                                 | 🚫 gated | 7 verticals selectable, isolated prompts/KBs                             |
+| 5                           | 4h            | Landing polish + Loom 90s + Upwork portfolio entry                                                    | partial  | Demo video recorded, posted, source on GitHub                            |
+| 6 (opt)                     | 6h            | Multilingual (ES/ZH)                                                                                  | 🚫 gated | International reach                                                      |
+
 
 ### ⛔️ Hard gate before any 🚫 work
 
 **Zero new feature work past Phase 2.0 until ALL of:**
+
 1. 5 Upwork pitches sent (templates in `docs/UPWORK_PITCH.md`).
 2. ≥1 **substantive** reply received. "Substantive" = a human who:
-   - Watched the demo OR clicked the live URL, AND
-   - Asks a follow-up question OR proposes a call.
-   - Form letters / auto-rejects / `"interested, send portfolio"` do NOT count.
+  - Watched the demo OR clicked the live URL, AND
+  - Asks a follow-up question OR proposes a call.
+  - Form letters / auto-rejects / `"interested, send portfolio"` do NOT count.
 3. That reply arrived **within 14 days** of the pitch it answers (signal decays fast; replies after day 14 are usually stale JDs — treat as **not** unlocking Phase 2.1 unless you consciously re-open with a fresh pitch thread).
 
 **What "14 days" means (not idle time):** it is an **observation cut-off**, not permission to do nothing. Until the gate passes you **do not** start Phase 2.1+ features; you **may** keep sending outreach (e.g. 15–20 pitches), fix bugs, tune prompts/docs, record longer demo cuts, or publish posts — anything that does **not** add 🚫-gated product surface.
@@ -141,15 +149,17 @@ Single Vapi assistant with system prompt + tools. **No multi-agent for MVP** —
 
 ## 10. Risks (logged)
 
-| Risk | Severity | Mitigation |
-|---|---|---|
-| Vapi/Retell pricing change | M | Architecture-level abstraction; LiveKit + OpenAI Realtime as Plan B |
-| Twilio China KYC blocks Phase 2 | M | MVP doesn't need Twilio; Phase 2 can use US virtual number or bring-your-own |
-| Demo phone abuse | L | Vapi spend limits + per-IP rate limiting |
-| Housecall Pro / ServiceTitan AI catches up | M | Differentiate on multi-vertical + open architecture + accent handling |
-| Voice quality poor on accents | M | Use Vapi's `eleven-labs-multilingual-v2` voice; verify in Phase 1 |
-| Side-project momentum loss | H | Hard 10h Phase 1 gate; pivot or stop based on Upwork response |
-| **Builder-mindset scope creep** | **H** | **§11 case-law log + hard gate language in §8. Cascade and human review every "what's next?" question against gate before starting work.** |
+
+| Risk                                       | Severity | Mitigation                                                                                                                                 |
+| ------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Vapi/Retell pricing change                 | M        | Architecture-level abstraction; LiveKit + OpenAI Realtime as Plan B                                                                        |
+| Twilio China KYC blocks Phase 2            | M        | MVP doesn't need Twilio; Phase 2 can use US virtual number or bring-your-own                                                               |
+| Demo phone abuse                           | L        | Vapi spend limits + per-IP rate limiting                                                                                                   |
+| Housecall Pro / ServiceTitan AI catches up | M        | Differentiate on multi-vertical + open architecture + accent handling                                                                      |
+| Voice quality poor on accents              | M        | Use Vapi's `eleven-labs-multilingual-v2` voice; verify in Phase 1                                                                          |
+| Side-project momentum loss                 | H        | Hard 10h Phase 1 gate; pivot or stop based on Upwork response                                                                              |
+| **Builder-mindset scope creep**            | **H**    | **§11 case-law log + hard gate language in §8. Cascade and human review every "what's next?" question against gate before starting work.** |
+
 
 ## 11. Off-plan decision log (case law)
 
@@ -181,3 +191,4 @@ same justifications.
 - **Next valid action**: record demo video + send 5 Upwork pitches.
 - **Next valid feature work**: only after §8 hard gate satisfies.
 - **If a "small" tactical refactor seems urgent**: ask "will this be visible in the 30s video or change a pitch line?" If no, it waits.
+

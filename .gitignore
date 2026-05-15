@@ -50,3 +50,10 @@ next-env.d.ts
 
 # Playwright MCP: local snapshots / console logs (per machine, can contain page content)
 .playwright-mcp/
+
+# IDE / local config
+.kiro/
+.vscode/
+
+# Temp scripts
+scripts/ocr.swift
